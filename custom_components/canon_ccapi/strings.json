@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Canon Camera",
+        "data": {
+          "host": "Camera IP Address",
+          "port": "CCAPI Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to camera. Check IP, port, and that CCAPI is enabled.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "Camera already configured."
+    }
+  }
+}

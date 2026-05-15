@@ -1,0 +1,11 @@
+{
+  "domain": "canon_ccapi",
+  "name": "Canon CCAPI",
+  "version": "0.1.0",
+  "config_flow": true,
+  "documentation": "https://github.com/andrej/canon",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": [],
+  "iot_class": "local_polling"
+}

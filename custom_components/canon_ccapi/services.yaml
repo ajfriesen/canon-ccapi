@@ -1,0 +1,22 @@
+take_photo:
+  name: Take Photo
+  description: Trigger the camera shutter and save the image to a local folder.
+  fields:
+    save_path:
+      name: Save Path
+      description: Absolute path to save folder. Defaults to config/www/canon_photos.
+      example: "/config/www/canon_photos"
+      selector:
+        text:
+    autofocus:
+      name: Autofocus
+      description: Use camera autofocus before shooting.
+      default: true
+      selector:
+        boolean:
+    delete_from_camera:
+      name: Delete from Camera
+      description: Delete the image from SD card after successful download.
+      default: false
+      selector:
+        boolean:
