@@ -1,7 +1,7 @@
 DOMAIN = "canon_ccapi"
 
 DEFAULT_PORT = 8080
-DEFAULT_SAVE_PATH = "www/canon_photos"
+DEFAULT_SAVE_PATH = "canon_photos"
 
 CCAPI_BASE = "ccapi"
 CCAPI_VER = "ver100"

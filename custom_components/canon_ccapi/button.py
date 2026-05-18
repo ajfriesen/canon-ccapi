@@ -1,3 +1,5 @@
+import os
+
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -45,7 +47,9 @@ class CanonTakePhotoButton(CoordinatorEntity, ButtonEntity):
     async def async_press(self) -> None:
         host = self._entry.data[CONF_HOST]
         port = self._entry.data[CONF_PORT]
-        save_path = self._hass.config.path(DEFAULT_SAVE_PATH)
+        save_path = os.path.join(
+            self._hass.config.media_dirs.get("local", "/media/local"), DEFAULT_SAVE_PATH
+        )
         await _do_take_photo(
             self._hass, host, port, save_path, autofocus=True, delete_from_camera=False
         )

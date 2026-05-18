@@ -48,7 +48,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     async def handle_take_photo(call: ServiceCall) -> None:
-        save_path = call.data.get("save_path", hass.config.path(DEFAULT_SAVE_PATH))
+        save_path = call.data.get(
+            "save_path",
+            os.path.join(hass.config.media_dirs.get("local", "/media/local"), DEFAULT_SAVE_PATH),
+        )
         autofocus = call.data.get("autofocus", True)
         delete_from_camera = call.data.get("delete_from_camera", False)
 
