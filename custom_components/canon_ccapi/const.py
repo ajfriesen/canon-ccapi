@@ -8,3 +8,10 @@ CCAPI_VER = "ver100"
 
 CONF_HOST = "host"
 CONF_PORT = "port"
+
+# Coordinator data keys
+KEY_CONNECTED = "connected"
+KEY_CAPS = "capabilities"
+KEY_BEST_VER = "best_ver"
+KEY_BATTERY = "battery"
+KEY_STORAGE = "storage"

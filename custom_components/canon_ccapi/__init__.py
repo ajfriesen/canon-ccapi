@@ -10,13 +10,15 @@ from homeassistant.exceptions import HomeAssistantError
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
-    DOMAIN,
-    CONF_HOST,
-    CONF_PORT,
     CCAPI_BASE,
     CCAPI_VER,
+    CONF_HOST,
+    CONF_PORT,
     DEFAULT_SAVE_PATH,
+    DOMAIN,
+    KEY_BEST_VER,
 )
+from .coordinator import CcapiCoordinator, find_endpoint_url
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,22 +32,22 @@ SERVICE_TAKE_PHOTO_SCHEMA = vol.Schema(
     }
 )
 
-
-KEEPALIVE_INTERVAL = 10  # seconds
+PLATFORMS = ["binary_sensor", "button", "sensor"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
-    stop_event = asyncio.Event()
-    hass.data[DOMAIN][entry.entry_id] = {"stop_event": stop_event}
-    hass.async_create_background_task(
-        _keepalive_loop(entry.data[CONF_HOST], entry.data[CONF_PORT], stop_event),
-        name=f"canon_ccapi_keepalive_{entry.entry_id}",
-    )
+
+    host = entry.data[CONF_HOST]
+    port = entry.data[CONF_PORT]
+
+    coordinator = CcapiCoordinator(hass, host, port, entry.entry_id)
+    await coordinator.async_config_entry_first_refresh()
+
+    hass.data[DOMAIN][entry.entry_id] = {"coordinator": coordinator}
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     async def handle_take_photo(call: ServiceCall) -> None:
-        host = entry.data[CONF_HOST]
-        port = entry.data[CONF_PORT]
         save_path = call.data.get("save_path", hass.config.path(DEFAULT_SAVE_PATH))
         autofocus = call.data.get("autofocus", True)
         delete_from_camera = call.data.get("delete_from_camera", False)
@@ -70,6 +72,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    hass.services.async_remove(DOMAIN, SERVICE_TAKE_PHOTO)
+    hass.data[DOMAIN].pop(entry.entry_id)
+    return True
+
+
 async def _do_take_photo(
     hass: HomeAssistant,
     host: str,
@@ -80,28 +89,50 @@ async def _do_take_photo(
 ) -> None:
     os.makedirs(save_path, exist_ok=True)
 
-    base = f"http://{host}:{port}/{CCAPI_BASE}/{CCAPI_VER}"
+    manifest_url = f"http://{host}:{port}/{CCAPI_BASE}"
 
     async with aiohttp.ClientSession() as session:
-        # Handshake: GET /ccapi activates the connection on non-AVF cameras
-        handshake_url = f"http://{host}:{port}/{CCAPI_BASE}"
-        try:
-            async with session.get(
-                handshake_url, timeout=aiohttp.ClientTimeout(total=10)
-            ) as resp:
-                if resp.status not in (200, 201):
-                    _LOGGER.warning(
-                        "Handshake returned HTTP %s, continuing", resp.status
-                    )
-        except Exception as exc:
-            raise HomeAssistantError(f"Cannot reach camera: {exc}") from exc
+        # Poll GET /ccapi until 200 — activates non-AVF cameras and gives us best_ver.
+        # Camera returns 503 while starting up ("Taken in preparation").
+        best_ver = CCAPI_VER
+        manifest = {}
+        deadline = asyncio.get_event_loop().time() + 30
+        while True:
+            try:
+                async with session.get(
+                    manifest_url, timeout=aiohttp.ClientTimeout(total=8)
+                ) as resp:
+                    if resp.status == 200:
+                        manifest = await resp.json()
+                        for ver_key, endpoints in manifest.items():
+                            if isinstance(endpoints, list) and ver_key > best_ver:
+                                best_ver = ver_key
+                        break
+                    if resp.status == 503:
+                        _LOGGER.debug("Camera not ready yet (503), retrying...")
+                    else:
+                        body = await resp.text()
+                        raise HomeAssistantError(
+                            f"Camera returned HTTP {resp.status}: {body}"
+                        )
+            except HomeAssistantError:
+                raise
+            except asyncio.TimeoutError:
+                _LOGGER.debug("Camera poll timed out, retrying...")
+            except Exception as exc:
+                _LOGGER.debug("Camera poll error: %s (%s)", exc, type(exc).__name__)
+            if asyncio.get_event_loop().time() >= deadline:
+                raise HomeAssistantError("Camera not ready within timeout")
+            await asyncio.sleep(2)
 
-        # Wait for camera to finish startup ("Taken in preparation" 503 phase)
-        if not await _wait_until_ready(session, base):
-            raise HomeAssistantError("Camera not ready within timeout")
+        base = f"http://{host}:{port}/{CCAPI_BASE}/{best_ver}"
 
-        # Trigger shutter
-        shutter_url = f"{base}/shooting/control/shutterbutton"
+        # Find the shutter endpoint from the manifest — don't assume it lives under best_ver
+        shutter_url = find_endpoint_url(
+            manifest, host, port, "/shooting/control/shutterbutton", method="post"
+        ) or f"{base}/shooting/control/shutterbutton"
+        _LOGGER.debug("Shutter URL: %s (best_ver=%s)", shutter_url, best_ver)
+
         async with session.post(
             shutter_url,
             json={"af": autofocus},
@@ -113,19 +144,25 @@ async def _do_take_photo(
                     f"Shutter failed: HTTP {resp.status} — {body}"
                 )
 
-        _LOGGER.debug("Shutter triggered, waiting for image write...")
-        await asyncio.sleep(3)
+        _LOGGER.debug("Shutter triggered, waiting for image via event polling...")
 
-        # Find newest image on camera storage
-        contents_base = await _discover_contents_base(session, host, port)
-        image_url = await _find_latest_image(session, host, port, contents_base)
+        # Try event polling first — camera pushes addedcontents when image is written
+        event_base_url = find_endpoint_url(manifest, host, port, "/event/polling") or f"{base}/event/polling"
+        image_url = await _poll_for_new_image(session, event_base_url, host, port)
+
+        if not image_url:
+            # Fallback: sleep then walk storage tree
+            _LOGGER.debug("Event polling yielded no image, falling back to storage walk")
+            await asyncio.sleep(3)
+            contents_base = await _discover_contents_base(session, host, port)
+            image_url = await _find_latest_image(session, host, port, contents_base)
+
         if not image_url:
             raise HomeAssistantError("No image found after shutter trigger")
 
         filename = image_url.split("/")[-1].split("?")[0]
         dest = os.path.join(save_path, filename)
 
-        # Download — strip any query params from the contents URL, use bare path
         download_url = image_url.split("?")[0]
         async with session.get(
             download_url, timeout=aiohttp.ClientTimeout(total=60)
@@ -163,57 +200,29 @@ async def _do_take_photo(
         )
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    hass.services.async_remove(DOMAIN, SERVICE_TAKE_PHOTO)
-    hass.data[DOMAIN].pop(entry.entry_id)["stop_event"].set()
-    return True
-
-
-async def _keepalive_loop(host: str, port: int, stop_event: asyncio.Event) -> None:
-    """Periodically hit GET /ccapi so camera stays activated after power-on."""
-    url = f"http://{host}:{port}/{CCAPI_BASE}"
-    async with aiohttp.ClientSession() as session:
-        while not stop_event.is_set():
-            try:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
-                    _LOGGER.debug("Keepalive %s: HTTP %s", url, resp.status)
-            except Exception as exc:
-                _LOGGER.debug("Keepalive failed (camera off?): %s", exc)
-            try:
-                await asyncio.wait_for(stop_event.wait(), timeout=KEEPALIVE_INTERVAL)
-            except asyncio.TimeoutError:
-                pass
-
-
-async def _discover_contents_base(
-    session: aiohttp.ClientSession, host: str, port: int
-) -> str:
-    """Return base URL for the highest CCAPI version that exposes GET /contents."""
-    url = f"http://{host}:{port}/{CCAPI_BASE}"
+async def _poll_for_new_image(
+    session: aiohttp.ClientSession, event_url: str, host: str, port: int
+) -> str | None:
+    """Long-poll the event endpoint for addedcontents; return image URL or None."""
     try:
-        async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+        async with session.get(
+            event_url,
+            params={"timeout": "8"},
+            timeout=aiohttp.ClientTimeout(total=12),
+        ) as resp:
             if resp.status == 200:
-                data = await resp.json()
-                best = None
-                for ver, endpoints in data.items():
-                    if not isinstance(endpoints, list):
-                        continue
-                    for ep in endpoints:
-                        if (
-                            isinstance(ep, dict)
-                            and ep.get("get")
-                            and ep.get("path", "").endswith("/contents")
-                        ):
-                            if best is None or ver > best:
-                                best = ver
-                            break
-                if best:
-                    _LOGGER.debug("Contents API version discovered: %s", best)
-                    return f"http://{host}:{port}/{CCAPI_BASE}/{best}"
+                ev = await resp.json()
+                added = ev.get("addedcontents", [])
+                if added:
+                    _LOGGER.debug("Event polling found %d new item(s)", len(added))
+                    image_exts = {".jpg", ".jpeg", ".cr2", ".cr3", ".heif", ".heic"}
+                    for item in reversed(added):
+                        path = item if isinstance(item, str) else item.get("path") or item.get("url") or ""
+                        if os.path.splitext(path.lower().split("?")[0])[1] in image_exts:
+                            return _to_full_url(path, host, port)
     except Exception as exc:
-        _LOGGER.warning("Version discovery failed: %s", exc)
-    _LOGGER.warning("Falling back to ver100 for contents")
-    return f"http://{host}:{port}/{CCAPI_BASE}/{CCAPI_VER}"
+        _LOGGER.debug("Event polling failed: %s", exc)
+    return None
 
 
 async def _wait_until_ready(
@@ -243,7 +252,6 @@ async def _wait_until_ready(
 
 
 def _extract_items(data: dict) -> list[str]:
-    """Parse both ver1.0.0 {"url":[...]} and ver1.1.0+ {"path":[...]} formats."""
     return data.get("path") or data.get("url") or []
 
 
@@ -265,13 +273,54 @@ async def _get_json(session: aiohttp.ClientSession, url: str) -> dict | None:
         return None
 
 
+async def _discover_contents_base(
+    session: aiohttp.ClientSession, host: str, port: int
+) -> str:
+    """Return base URL for the highest CCAPI version that exposes GET /contents."""
+    url = f"http://{host}:{port}/{CCAPI_BASE}"
+    try:
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                best = None
+                for ver, endpoints in data.items():
+                    if not isinstance(endpoints, list):
+                        continue
+                    for ep in endpoints:
+                        if not isinstance(ep, dict):
+                            continue
+                        raw = ep.get("path") or ep.get("url") or ""
+                        if raw.startswith("http"):
+                            from urllib.parse import urlparse as _up
+                            raw = _up(raw).path
+                        if raw.endswith("/contents") and ep.get("get"):
+                            if best is None or ver > best:
+                                best = ver
+                            break
+                if best:
+                    _LOGGER.debug("Contents API version discovered: %s", best)
+                    return f"http://{host}:{port}/{CCAPI_BASE}/{best}"
+    except Exception as exc:
+        _LOGGER.warning("Version discovery failed: %s", exc)
+
+    for ver in ("ver110", "ver100"):
+        probe = f"http://{host}:{port}/{CCAPI_BASE}/{ver}/contents"
+        try:
+            async with session.get(probe, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                if resp.status in (200, 201):
+                    _LOGGER.debug("Contents found by probe at %s", ver)
+                    return f"http://{host}:{port}/{CCAPI_BASE}/{ver}"
+        except Exception:
+            pass
+
+    _LOGGER.warning("Falling back to %s for contents", CCAPI_VER)
+    return f"http://{host}:{port}/{CCAPI_BASE}/{CCAPI_VER}"
+
+
 async def _find_latest_image(
     session: aiohttp.ClientSession, host: str, port: int, base: str
 ) -> str | None:
     """Walk CCAPI contents tree and return URL of the newest image."""
-
-    # 1. Storage list — returns {"url":[...]} (v1.0) or {"path":[...]} (v1.1+)
-    #    e.g. ["http://.../contents/sd"] or ["/ccapi/ver110/contents/card1"]
     data = await _get_json(session, f"{base}/contents")
     if not data:
         return None
@@ -281,8 +330,6 @@ async def _find_latest_image(
         return None
     storage_url = _to_full_url(storage_items[0], host, port)
 
-    # 2. Directory list — returns full URLs or paths of DCIM sub-directories
-    #    e.g. ["http://.../contents/sd/100CANON", ".../101CANON"]
     data = await _get_json(session, storage_url)
     if not data:
         return None
@@ -290,15 +337,14 @@ async def _find_latest_image(
     if not dir_items:
         _LOGGER.error("No directories on storage")
         return None
-    # Sort by directory name; highest = most recently created
-    dir_items_sorted = sorted(dir_items, key=lambda x: x.rstrip("/").split("/")[-1], reverse=True)
+    dir_items_sorted = sorted(
+        dir_items, key=lambda x: x.rstrip("/").split("/")[-1], reverse=True
+    )
     latest_dir_url = _to_full_url(dir_items_sorted[0], host, port)
 
-    # 3. Get page count so we can fetch the last page (newest files are last in asc order)
     count_data = await _get_json(session, f"{latest_dir_url}?kind=number")
     last_page = count_data.get("pagenumber", 1) if count_data else 1
 
-    # 4. Fetch last page of file list
     data = await _get_json(session, f"{latest_dir_url}?page={last_page}")
     if not data:
         return None
@@ -307,7 +353,6 @@ async def _find_latest_image(
         _LOGGER.error("No files in directory %s (page %s)", latest_dir_url, last_page)
         return None
 
-    # Filter to still images; last item in ascending list = newest
     image_exts = {".jpg", ".jpeg", ".cr2", ".cr3", ".heif", ".heic"}
     image_files = [
         f for f in file_items
