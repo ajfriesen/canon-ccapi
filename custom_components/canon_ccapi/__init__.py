@@ -90,7 +90,13 @@ async def _do_take_photo(
     autofocus: bool,
     delete_from_camera: bool,
 ) -> None:
-    os.makedirs(save_path, exist_ok=True)
+    try:
+        os.makedirs(save_path, exist_ok=True)
+    except PermissionError:
+        raise HomeAssistantError(
+            f"Cannot create photo directory '{save_path}': permission denied. "
+            "Pass a custom save_path to the take_photo service."
+        )
 
     manifest_url = f"http://{host}:{port}/{CCAPI_BASE}"
 

@@ -14,6 +14,7 @@ from .const import (
     KEY_CAPS,
     KEY_CONNECTED,
     KEY_STORAGE,
+    KEY_TEMPERATURE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -107,12 +108,15 @@ class CcapiCoordinator(DataUpdateCoordinator):
 
         battery_url = find_endpoint_url(manifest, self._host, self._port, "/devicestatus/battery")
         storage_url = find_endpoint_url(manifest, self._host, self._port, "/devicestatus/storage")
+        temperature_url = find_endpoint_url(manifest, self._host, self._port, "/devicestatus/temperature")
 
         _LOGGER.debug("Battery URL from manifest: %s", battery_url)
         _LOGGER.debug("Storage URL from manifest: %s", storage_url)
+        _LOGGER.debug("Temperature URL from manifest: %s", temperature_url)
 
         battery = None
         storage = []
+        temperature = None
 
         async with aiohttp.ClientSession() as session:
             if battery_url:
@@ -144,12 +148,27 @@ class CcapiCoordinator(DataUpdateCoordinator):
             else:
                 _LOGGER.debug("Storage endpoint not in manifest, skipping")
 
+            if temperature_url:
+                try:
+                    async with session.get(
+                        temperature_url, timeout=aiohttp.ClientTimeout(total=5)
+                    ) as resp:
+                        if resp.status == 200:
+                            temperature = await resp.json()
+                        else:
+                            _LOGGER.debug("Temperature HTTP %s", resp.status)
+                except Exception as exc:
+                    _LOGGER.debug("Temperature fetch failed: %s", exc)
+            else:
+                _LOGGER.debug("Temperature endpoint not in manifest, skipping")
+
         return {
             KEY_CONNECTED: True,
             KEY_BEST_VER: best_ver,
             KEY_CAPS: caps,
             KEY_BATTERY: battery,
             KEY_STORAGE: storage,
+            KEY_TEMPERATURE: temperature,
         }
 
     def _disconnected(self) -> dict:
@@ -159,4 +178,5 @@ class CcapiCoordinator(DataUpdateCoordinator):
             KEY_CAPS: self._last_caps,
             KEY_BATTERY: None,
             KEY_STORAGE: [],
+            KEY_TEMPERATURE: None,
         }
