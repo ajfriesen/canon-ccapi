@@ -32,7 +32,7 @@ SERVICE_TAKE_PHOTO_SCHEMA = vol.Schema(
     }
 )
 
-PLATFORMS = ["binary_sensor", "button", "sensor"]
+PLATFORMS = ["binary_sensor", "button", "camera", "sensor"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -50,7 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def handle_take_photo(call: ServiceCall) -> None:
         save_path = call.data.get(
             "save_path",
-            os.path.join(hass.config.media_dirs.get("local", "/media/local"), DEFAULT_SAVE_PATH),
+            os.path.join(hass.config.media_dirs.get("local", "media/local"), DEFAULT_SAVE_PATH),
         )
         autofocus = call.data.get("autofocus", True)
         delete_from_camera = call.data.get("delete_from_camera", False)

@@ -8,5 +8,5 @@
   "dependencies": [],
   "codeowners": [],
   "iot_class": "local_polling",
-  "platforms": ["binary_sensor", "button", "sensor"]
+  "platforms": ["binary_sensor", "button", "camera", "sensor"]
 }
