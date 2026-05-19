@@ -7,6 +7,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_HOST, CONF_PORT, DEFAULT_SAVE_PATH, DOMAIN, KEY_CONNECTED
+
 from .coordinator import CcapiCoordinator
 from . import _do_take_photo
 
@@ -32,12 +33,7 @@ class CanonTakePhotoButton(CoordinatorEntity, ButtonEntity):
         self._hass = hass
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_take_photo"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": f"Canon Camera ({entry.data[CONF_HOST]}:{entry.data[CONF_PORT]})",
-            "manufacturer": "Canon",
-            "configuration_url": f"http://{entry.data[CONF_HOST]}:{entry.data[CONF_PORT]}/ccapi",
-        }
+        self._attr_device_info = coordinator.build_device_info(entry)
 
     @property
     def available(self) -> bool:

@@ -9,10 +9,14 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .const import (
     CCAPI_BASE,
     CCAPI_VER,
+    CONF_HOST,
+    CONF_PORT,
+    DOMAIN,
     KEY_BATTERY,
     KEY_BEST_VER,
     KEY_CAPS,
     KEY_CONNECTED,
+    KEY_DEVICE_INFO,
     KEY_STORAGE,
     KEY_TEMPERATURE,
 )
@@ -68,6 +72,7 @@ class CcapiCoordinator(DataUpdateCoordinator):
         self._port = port
         self._last_caps: dict = {}
         self._last_best_ver: str = CCAPI_VER
+        self._last_device_info: dict = {}
 
     async def _async_update_data(self) -> dict:
         manifest_url = f"http://{self._host}:{self._port}/{CCAPI_BASE}"
@@ -105,6 +110,17 @@ class CcapiCoordinator(DataUpdateCoordinator):
 
         self._last_caps = caps
         self._last_best_ver = best_ver
+
+        if not self._last_device_info:
+            device_info_url = find_endpoint_url(manifest, self._host, self._port, "/deviceinformation")
+            if device_info_url:
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(device_info_url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                            if resp.status == 200:
+                                self._last_device_info = await resp.json()
+                except Exception as exc:
+                    _LOGGER.debug("Device info fetch failed: %s", exc)
 
         battery_url = find_endpoint_url(manifest, self._host, self._port, "/devicestatus/battery")
         storage_url = find_endpoint_url(manifest, self._host, self._port, "/devicestatus/storage")
@@ -169,7 +185,26 @@ class CcapiCoordinator(DataUpdateCoordinator):
             KEY_BATTERY: battery,
             KEY_STORAGE: storage,
             KEY_TEMPERATURE: temperature,
+            KEY_DEVICE_INFO: self._last_device_info,
         }
+
+    def build_device_info(self, entry) -> dict:
+        info = self._last_device_info
+        d = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": info.get("productname") or f"Canon Camera ({entry.data[CONF_HOST]}:{entry.data[CONF_PORT]})",
+            "manufacturer": info.get("manufacturer") or "Canon",
+            "configuration_url": f"http://{entry.data[CONF_HOST]}:{entry.data[CONF_PORT]}/ccapi",
+        }
+        if info.get("productname"):
+            d["model"] = info["productname"]
+        if info.get("firmwareversion"):
+            d["sw_version"] = info["firmwareversion"]
+        if info.get("serialnumber"):
+            d["serial_number"] = info["serialnumber"]
+        if info.get("macaddress"):
+            d["connections"] = {("mac", info["macaddress"])}
+        return d
 
     def _disconnected(self) -> dict:
         return {
@@ -179,4 +214,5 @@ class CcapiCoordinator(DataUpdateCoordinator):
             KEY_BATTERY: None,
             KEY_STORAGE: [],
             KEY_TEMPERATURE: None,
+            KEY_DEVICE_INFO: self._last_device_info,
         }

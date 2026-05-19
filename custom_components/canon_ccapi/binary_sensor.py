@@ -4,7 +4,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_HOST, CONF_PORT, DOMAIN, KEY_CONNECTED
+from .const import DOMAIN, KEY_CONNECTED
+from .coordinator import CcapiCoordinator
 
 
 async def async_setup_entry(
@@ -21,15 +22,10 @@ class CanonConnectionSensor(CoordinatorEntity, BinarySensorEntity):
     _attr_has_entity_name = True
     _attr_name = "Connection"
 
-    def __init__(self, coordinator, entry: ConfigEntry) -> None:
+    def __init__(self, coordinator: CcapiCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{entry.entry_id}_connection"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": f"Canon Camera ({entry.data[CONF_HOST]}:{entry.data[CONF_PORT]})",
-            "manufacturer": "Canon",
-            "configuration_url": f"http://{entry.data[CONF_HOST]}:{entry.data[CONF_PORT]}/ccapi",
-        }
+        self._attr_device_info = coordinator.build_device_info(entry)
 
     @property
     def is_on(self) -> bool:

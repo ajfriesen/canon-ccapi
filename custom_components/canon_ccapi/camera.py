@@ -35,12 +35,7 @@ class CanonLiveViewCamera(CoordinatorEntity, Camera):
         Camera.__init__(self)
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_liveview"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": f"Canon Camera ({entry.data[CONF_HOST]}:{entry.data[CONF_PORT]})",
-            "manufacturer": "Canon",
-            "configuration_url": f"http://{entry.data[CONF_HOST]}:{entry.data[CONF_PORT]}/ccapi",
-        }
+        self._attr_device_info = coordinator.build_device_info(entry)
         self._liveview_active = False
 
     @property
