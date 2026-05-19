@@ -35,6 +35,7 @@ def _device_info(entry: ConfigEntry) -> dict:
         "identifiers": {(DOMAIN, entry.entry_id)},
         "name": f"Canon Camera ({entry.data[CONF_HOST]}:{entry.data[CONF_PORT]})",
         "manufacturer": "Canon",
+        "configuration_url": f"http://{entry.data[CONF_HOST]}:{entry.data[CONF_PORT]}/ccapi",
     }
 
 

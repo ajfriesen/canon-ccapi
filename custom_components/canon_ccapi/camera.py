@@ -39,6 +39,7 @@ class CanonLiveViewCamera(CoordinatorEntity, Camera):
             "identifiers": {(DOMAIN, entry.entry_id)},
             "name": f"Canon Camera ({entry.data[CONF_HOST]}:{entry.data[CONF_PORT]})",
             "manufacturer": "Canon",
+            "configuration_url": f"http://{entry.data[CONF_HOST]}:{entry.data[CONF_PORT]}/ccapi",
         }
         self._liveview_active = False
 
