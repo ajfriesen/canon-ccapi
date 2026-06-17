@@ -1,12 +1,11 @@
 {
   "domain": "canon_ccapi",
-  "name": "Canon CCAPI",
-  "version": "2.0.0",
+  "name": "Canon Camera Control API",
+  "version": "0.1.0",
+  "codeowners": ["@ajfriesen"],
+  "documentation": "https://github.com/ajfriesen/canon-ccapi",
+  "issue_tracker": "https://github.com/ajfriesen/canon-ccapi/issues",
   "config_flow": true,
-  "documentation": "https://github.com/andrej/canon",
-  "requirements": [],
-  "dependencies": [],
-  "codeowners": [],
   "iot_class": "local_polling",
-  "platforms": ["binary_sensor", "button", "camera", "sensor"]
+  "integration_type": "device"
 }
