@@ -5,7 +5,7 @@ import os
 import aiohttp
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 import homeassistant.helpers.config_validation as cv
 
@@ -47,7 +47,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = {"coordinator": coordinator}
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    async def handle_take_photo(call: ServiceCall) -> None:
+    async def handle_take_photo(call: ServiceCall) -> dict:
         save_path = call.data.get(
             "save_path",
             os.path.join(hass.config.media_dirs.get("local", "media/local"), DEFAULT_SAVE_PATH),
@@ -56,9 +56,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         delete_from_camera = call.data.get("delete_from_camera", False)
 
         try:
-            await _do_take_photo(
+            result = await _do_take_photo(
                 hass, host, port, save_path, autofocus, delete_from_camera
             )
+            return result
         except HomeAssistantError:
             raise
         except Exception as exc:
@@ -70,6 +71,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         SERVICE_TAKE_PHOTO,
         handle_take_photo,
         schema=SERVICE_TAKE_PHOTO_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
     )
 
     return True
@@ -82,6 +84,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
+def _write_file(path: str, data: bytes) -> None:
+    with open(path, "wb") as f:
+        f.write(data)
+
+
 async def _do_take_photo(
     hass: HomeAssistant,
     host: str,
@@ -91,7 +98,9 @@ async def _do_take_photo(
     delete_from_camera: bool,
 ) -> None:
     try:
-        os.makedirs(save_path, exist_ok=True)
+        await hass.async_add_executor_job(
+            lambda: os.makedirs(save_path, exist_ok=True)
+        )
     except PermissionError:
         raise HomeAssistantError(
             f"Cannot create photo directory '{save_path}': permission denied. "
@@ -135,6 +144,20 @@ async def _do_take_photo(
             await asyncio.sleep(2)
 
         base = f"http://{host}:{port}/{CCAPI_BASE}/{best_ver}"
+
+        # Stop live view if active — camera returns 503 "Device busy" otherwise
+        liveview_url = find_endpoint_url(manifest, host, port, "/shooting/liveview", method="post")
+        if liveview_url:
+            try:
+                async with session.post(
+                    liveview_url,
+                    json={"liveviewsize": "off"},
+                    timeout=aiohttp.ClientTimeout(total=5),
+                ) as resp:
+                    _LOGGER.debug("Stop live view before shutter: HTTP %s", resp.status)
+            except Exception as exc:
+                _LOGGER.debug("Stop live view before shutter failed (non-fatal): %s", exc)
+            await asyncio.sleep(0.5)
 
         # Find the shutter endpoint from the manifest — don't assume it lives under best_ver
         shutter_url = find_endpoint_url(
@@ -183,8 +206,7 @@ async def _do_take_photo(
                 )
             content = await resp.read()
 
-        with open(dest, "wb") as f:
-            f.write(content)
+        await hass.async_add_executor_job(_write_file, dest, content)
 
         _LOGGER.info("Photo saved: %s", dest)
 
@@ -207,6 +229,8 @@ async def _do_take_photo(
             f"{DOMAIN}_photo_taken",
             {"path": dest, "filename": filename},
         )
+
+        return {"path": dest, "filename": filename}
 
 
 async def _poll_for_new_image(
