@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import timedelta
 from urllib.parse import urlparse
 
@@ -6,6 +7,7 @@ import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CCAPI_BASE,
@@ -37,6 +39,7 @@ CAMERA_SETTINGS = {
     "stillimagequality": "/shooting/settings/stillimagequality",
     # "author", not "artist" - the reference calls this field artist but this
     # camera exposes author and 404s on artist.
+    "datetime": "/functions/datetime",
     "registeredname/copyright": "/functions/registeredname/copyright",
     "registeredname/author": "/functions/registeredname/author",
     "registeredname/ownername": "/functions/registeredname/ownername",
@@ -48,6 +51,14 @@ CAMERA_SETTINGS = {
 # a cycle the shooting preflight depends on being quick. Refresh on the first
 # update, then roughly once a minute.
 SETTINGS_REFRESH_EVERY = 6
+
+# Built by hand rather than strftime: %a/%b follow the process locale, and the
+# camera rejects a localised day name with "Invalid parameter".
+_RFC1123_DAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+_RFC1123_MONTHS = (
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+)
 
 
 def _endpoint_path(ep: dict) -> str:
@@ -343,6 +354,63 @@ class CcapiCoordinator(DataUpdateCoordinator):
         self._last_settings.setdefault(name, {})[field] = value
         self._settings_tick = 0
         await self.async_request_refresh()
+
+    async def async_sync_datetime(self) -> str:
+        """Set the camera's clock from Home Assistant's local time.
+
+        Correct only the wall clock, and echo back whatever offset and dst flag
+        the camera already reports. Verified on an EOS R100: the camera stores
+        the string verbatim and does not recompute the displayed time from the
+        offset, so preserving those two fields cannot shift the clock by an
+        hour if Canon's offset convention differs from ours. It reports +0100
+        with dst true for a Berlin summer, i.e. offset means the standard zone.
+
+        Day and month names must be English. A localised string is rejected
+        with "Invalid parameter", so they are built from fixed tuples rather
+        than strftime, whose %a/%b follow the process locale.
+        """
+        url = self._setting_urls.get("datetime")
+        if not url:
+            raise HomeAssistantError("Camera does not expose /functions/datetime")
+
+        current = (self._last_settings.get("datetime") or {}).get("datetime", "")
+        offset = current.rsplit(" ", 1)[-1] if current else ""
+        if not re.fullmatch(r"[+-]\d{4}", offset):
+            raise HomeAssistantError(
+                f"Cannot read the camera's UTC offset (got {current!r}); "
+                "refusing to guess it"
+            )
+        dst = bool((self._last_settings.get("datetime") or {}).get("dst", False))
+
+        now = dt_util.now()
+        stamp = (
+            f"{_RFC1123_DAYS[now.weekday()]}, {now.day:02d} "
+            f"{_RFC1123_MONTHS[now.month - 1]} {now.year} "
+            f"{now.hour:02d}:{now.minute:02d}:{now.second:02d} {offset}"
+        )
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.put(
+                    url,
+                    json={"datetime": stamp, "dst": dst},
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as resp:
+                    if resp.status != 200:
+                        body = await resp.text()
+                        raise HomeAssistantError(
+                            f"Clock sync failed: HTTP {resp.status} {body}"
+                        )
+        except HomeAssistantError:
+            raise
+        except Exception as exc:
+            raise HomeAssistantError(f"Clock sync failed: {exc}") from exc
+
+        _LOGGER.info("Camera clock synced to %s (dst=%s)", stamp, dst)
+        self._last_settings.setdefault("datetime", {})["datetime"] = stamp
+        self._settings_tick = 0
+        await self.async_request_refresh()
+        return stamp
 
     def note_liveview_stopped(self) -> None:
         """Record that something else stopped live view, e.g. taking a photo."""

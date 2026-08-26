@@ -15,6 +15,7 @@
 | Recordable Shots | `sensor` | From `/shooting/information/recordable`. Already accounts for the current image quality, so it answers "how many more shots" without arithmetic. |
 | Live View | `switch` | Explicit control. The camera entity starts live view lazily whenever anything asks for a frame, so this makes that visible and stoppable. |
 | Take Photo | `button` | Same path as the `canon_ccapi.take_photo` action. |
+| Sync Clock | `button` | Sets the camera clock from Home Assistant. Corrects only the wall clock and preserves the camera's own UTC offset and dst flag. |
 | Live View | `camera` | Starts live view on demand and stops it again. |
 | Display off after | `select` | Seconds of inactivity before the rear screen sleeps. |
 | Auto power off after | `select` | Seconds before the camera powers down, or `disable`. |
