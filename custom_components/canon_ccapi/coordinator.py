@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 
 import aiohttp
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
@@ -17,12 +18,22 @@ from .const import (
     KEY_CAPS,
     KEY_CONNECTED,
     KEY_DEVICE_INFO,
+    KEY_SETTINGS,
     KEY_STORAGE,
     KEY_TEMPERATURE,
 )
 
 _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = timedelta(seconds=10)
+
+# Writable camera settings under /functions/, exposed as select entities.
+CAMERA_SETTINGS = ("displayoff", "autopoweroff", "beep")
+
+# These only change when somebody changes them, so they do not justify a round
+# trip on every 10 s poll: that would add three more serial 5 s-timeout GETs to
+# a cycle the shooting preflight depends on being quick. Refresh on the first
+# update, then roughly once a minute.
+SETTINGS_REFRESH_EVERY = 6
 
 
 def _endpoint_path(ep: dict) -> str:
@@ -73,6 +84,9 @@ class CcapiCoordinator(DataUpdateCoordinator):
         self._last_caps: dict = {}
         self._last_best_ver: str = CCAPI_VER
         self._last_device_info: dict = {}
+        self._last_settings: dict = {}
+        self._setting_urls: dict = {}
+        self._settings_tick = 0
 
     async def _async_update_data(self) -> dict:
         manifest_url = f"http://{self._host}:{self._port}/{CCAPI_BASE}"
@@ -178,6 +192,14 @@ class CcapiCoordinator(DataUpdateCoordinator):
             else:
                 _LOGGER.debug("Temperature endpoint not in manifest, skipping")
 
+        refresh_settings = (
+            not self._last_settings
+            or self._settings_tick % SETTINGS_REFRESH_EVERY == 0
+        )
+        self._settings_tick += 1
+        if refresh_settings:
+            await self._async_fetch_settings(manifest)
+
         return {
             KEY_CONNECTED: True,
             KEY_BEST_VER: best_ver,
@@ -185,8 +207,64 @@ class CcapiCoordinator(DataUpdateCoordinator):
             KEY_BATTERY: battery,
             KEY_STORAGE: storage,
             KEY_TEMPERATURE: temperature,
+            KEY_SETTINGS: self._last_settings,
             KEY_DEVICE_INFO: self._last_device_info,
         }
+
+    async def _async_fetch_settings(self, manifest: dict) -> None:
+        """Cache the writable /functions/ settings and their allowed values."""
+        settings: dict = {}
+        async with aiohttp.ClientSession() as session:
+            for name in CAMERA_SETTINGS:
+                url = find_endpoint_url(
+                    manifest, self._host, self._port, f"/functions/{name}"
+                )
+                if not url:
+                    _LOGGER.debug("%s endpoint not in manifest, skipping", name)
+                    continue
+                self._setting_urls[name] = url
+                try:
+                    async with session.get(
+                        url, timeout=aiohttp.ClientTimeout(total=5)
+                    ) as resp:
+                        if resp.status == 200:
+                            settings[name] = await resp.json()
+                        else:
+                            _LOGGER.debug("%s HTTP %s", name, resp.status)
+                except Exception as exc:
+                    _LOGGER.debug("%s fetch failed: %s", name, exc)
+        # Only replace the cache on a successful read, so one transient failure
+        # does not blank out the select entities.
+        if settings:
+            self._last_settings = settings
+
+    async def async_set_setting(self, name: str, value: str) -> None:
+        """PUT one /functions/ setting, then refresh the cached copy."""
+        url = self._setting_urls.get(name)
+        if not url:
+            raise HomeAssistantError(f"Camera does not expose /functions/{name}")
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.put(
+                    url,
+                    json={"value": value},
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as resp:
+                    if resp.status != 200:
+                        body = await resp.text()
+                        raise HomeAssistantError(
+                            f"Setting {name}={value} failed: HTTP {resp.status} {body}"
+                        )
+        except HomeAssistantError:
+            raise
+        except Exception as exc:
+            raise HomeAssistantError(f"Setting {name}={value} failed: {exc}") from exc
+
+        # Reflect it immediately for a responsive UI, then force a real re-read
+        # on the next poll rather than trusting the optimistic value.
+        self._last_settings.setdefault(name, {})["value"] = value
+        self._settings_tick = 0
+        await self.async_request_refresh()
 
     def build_device_info(self, entry) -> dict:
         info = self._last_device_info
@@ -214,5 +292,6 @@ class CcapiCoordinator(DataUpdateCoordinator):
             KEY_BATTERY: None,
             KEY_STORAGE: [],
             KEY_TEMPERATURE: None,
+            KEY_SETTINGS: self._last_settings,
             KEY_DEVICE_INFO: self._last_device_info,
         }
