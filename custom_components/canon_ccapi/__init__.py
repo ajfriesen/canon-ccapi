@@ -22,6 +22,12 @@ from .coordinator import CcapiCoordinator, find_endpoint_url
 
 _LOGGER = logging.getLogger(__name__)
 
+
+def _t() -> float:
+    """Monotonic seconds, used for per-step timing of take_photo."""
+    return asyncio.get_event_loop().time()
+
+
 SERVICE_TAKE_PHOTO = "take_photo"
 
 SERVICE_TAKE_PHOTO_SCHEMA = vol.Schema(
@@ -107,6 +113,7 @@ async def _do_take_photo(
             "Pass a custom save_path to the take_photo service."
         )
 
+    t_start = _t()
     manifest_url = f"http://{host}:{port}/{CCAPI_BASE}"
 
     async with aiohttp.ClientSession() as session:
@@ -143,6 +150,8 @@ async def _do_take_photo(
                 raise HomeAssistantError("Camera not ready within timeout")
             await asyncio.sleep(2)
 
+        t_manifest = _t()
+
         base = f"http://{host}:{port}/{CCAPI_BASE}/{best_ver}"
 
         # Stop live view if active — camera returns 503 "Device busy" otherwise
@@ -158,6 +167,7 @@ async def _do_take_photo(
             except Exception as exc:
                 _LOGGER.debug("Stop live view before shutter failed (non-fatal): %s", exc)
             await asyncio.sleep(0.5)
+        t_liveview = _t()
 
         # Find the shutter endpoint from the manifest — don't assume it lives under best_ver
         shutter_url = find_endpoint_url(
@@ -176,6 +186,7 @@ async def _do_take_photo(
                     f"Shutter failed: HTTP {resp.status} — {body}"
                 )
 
+        t_shutter = _t()
         _LOGGER.debug("Shutter triggered, waiting for image via event polling...")
 
         # Try event polling first — camera pushes addedcontents when image is written
@@ -192,6 +203,8 @@ async def _do_take_photo(
         if not image_url:
             raise HomeAssistantError("No image found after shutter trigger")
 
+        t_find = _t()
+
         filename = image_url.split("/")[-1].split("?")[0]
         dest = os.path.join(save_path, filename)
 
@@ -207,6 +220,7 @@ async def _do_take_photo(
             content = await resp.read()
 
         await hass.async_add_executor_job(_write_file, dest, content)
+        t_download = _t()
 
         _LOGGER.info("Photo saved: %s", dest)
 
@@ -224,6 +238,25 @@ async def _do_take_photo(
                         del_resp.status,
                         body,
                     )
+
+        t_end = _t()
+        # Logged at INFO on purpose: when a shot feels slow this one line says
+        # which step ate the time. "locate" is the interesting one - the camera
+        # is supposed to push addedcontents, and when that long-poll times out
+        # instead the code falls back to a 3 s sleep plus a storage-tree walk,
+        # which costs 15 s or more.
+        _LOGGER.info(
+            "take_photo %s took %.1fs (wake %.1f, liveview-stop %.1f, shutter %.1f, "
+            "locate %.1f, download %.1f, delete %.1f)",
+            filename,
+            t_end - t_start,
+            t_manifest - t_start,
+            t_liveview - t_manifest,
+            t_shutter - t_liveview,
+            t_find - t_shutter,
+            t_download - t_find,
+            t_end - t_download,
+        )
 
         hass.bus.async_fire(
             f"{DOMAIN}_photo_taken",
