@@ -26,11 +26,17 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = timedelta(seconds=10)
 
-# Writable camera settings under /functions/, exposed as select entities.
-CAMERA_SETTINGS = ("displayoff", "autopoweroff", "beep")
+# Writable camera settings exposed as select entities, name -> endpoint suffix.
+# Not all live under /functions/, so the path is explicit rather than derived.
+CAMERA_SETTINGS = {
+    "displayoff": "/functions/displayoff",
+    "autopoweroff": "/functions/autopoweroff",
+    "beep": "/functions/beep",
+    "stillimagequality": "/shooting/settings/stillimagequality",
+}
 
 # These only change when somebody changes them, so they do not justify a round
-# trip on every 10 s poll: that would add three more serial 5 s-timeout GETs to
+# trip on every 10 s poll: that would add several more serial 5 s-timeout GETs to
 # a cycle the shooting preflight depends on being quick. Refresh on the first
 # update, then roughly once a minute.
 SETTINGS_REFRESH_EVERY = 6
@@ -215,10 +221,8 @@ class CcapiCoordinator(DataUpdateCoordinator):
         """Cache the writable /functions/ settings and their allowed values."""
         settings: dict = {}
         async with aiohttp.ClientSession() as session:
-            for name in CAMERA_SETTINGS:
-                url = find_endpoint_url(
-                    manifest, self._host, self._port, f"/functions/{name}"
-                )
+            for name, suffix in CAMERA_SETTINGS.items():
+                url = find_endpoint_url(manifest, self._host, self._port, suffix)
                 if not url:
                     _LOGGER.debug("%s endpoint not in manifest, skipping", name)
                     continue
@@ -238,11 +242,13 @@ class CcapiCoordinator(DataUpdateCoordinator):
         if settings:
             self._last_settings = settings
 
-    async def async_set_setting(self, name: str, value: str) -> None:
+    async def async_set_setting(self, name: str, value) -> None:
         """PUT one /functions/ setting, then refresh the cached copy."""
         url = self._setting_urls.get(name)
         if not url:
-            raise HomeAssistantError(f"Camera does not expose /functions/{name}")
+            raise HomeAssistantError(
+                f"Camera does not expose {CAMERA_SETTINGS.get(name, name)}"
+            )
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.put(
