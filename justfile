@@ -64,3 +64,7 @@ logs:
 # Delete a shadowing copy, e.g. `just remove-stale canon`. Destructive.
 remove-stale name:
     ssh -p {{ha_port}} {{ha_user}}@{{ha_host}} 'rm -rf /config/custom_components/{{name}}'
+
+# Re-record what a camera supports into docs/capabilities/
+capabilities cam="192.168.178.212:8080":
+    .venv/bin/python tools/dump_capabilities.py {{cam}}

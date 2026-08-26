@@ -1,0 +1,934 @@
+{
+  "device": {
+    "firmwareversion": "1.3.0",
+    "guid": "5faa41b5c84f8c696b482ab0174cd960",
+    "macaddress": "80:03:0d:00:6e:4a",
+    "manufacturer": "Canon.Inc",
+    "productname": "Canon EOS R100",
+    "serialnumber": "343032004850"
+  },
+  "endpoints": {
+    "/contents": {
+      "delete": true,
+      "get": true,
+      "post": true,
+      "put": true,
+      "url": "/ccapi/ver130/contents",
+      "version": "ver130"
+    },
+    "/deviceinformation": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/deviceinformation",
+      "version": "ver100"
+    },
+    "/devicestatus/battery": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/devicestatus/battery",
+      "version": "ver100"
+    },
+    "/devicestatus/lens": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/devicestatus/lens",
+      "version": "ver100"
+    },
+    "/devicestatus/storage": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver110/devicestatus/storage",
+      "version": "ver110"
+    },
+    "/devicestatus/temperature": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/devicestatus/temperature",
+      "version": "ver100"
+    },
+    "/event/monitoring": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/event/monitoring",
+      "version": "ver100"
+    },
+    "/event/polling": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/event/polling",
+      "version": "ver100"
+    },
+    "/functions/autopoweroff": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/functions/autopoweroff",
+      "version": "ver100"
+    },
+    "/functions/beep": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/functions/beep",
+      "version": "ver100"
+    },
+    "/functions/cardformat": {
+      "delete": false,
+      "get": false,
+      "post": true,
+      "put": false,
+      "url": "/ccapi/ver100/functions/cardformat",
+      "version": "ver100"
+    },
+    "/functions/datetime": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/functions/datetime",
+      "version": "ver100"
+    },
+    "/functions/displayoff": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/functions/displayoff",
+      "version": "ver100"
+    },
+    "/functions/registeredname/author": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/functions/registeredname/author",
+      "version": "ver100"
+    },
+    "/functions/registeredname/copyright": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/functions/registeredname/copyright",
+      "version": "ver100"
+    },
+    "/functions/registeredname/nickname": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/functions/registeredname/nickname",
+      "version": "ver100"
+    },
+    "/functions/registeredname/ownername": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/functions/registeredname/ownername",
+      "version": "ver100"
+    },
+    "/functions/viewfinderoff": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/functions/viewfinderoff",
+      "version": "ver100"
+    },
+    "/functions/wificonnection": {
+      "delete": false,
+      "get": false,
+      "post": true,
+      "put": false,
+      "url": "/ccapi/ver100/functions/wificonnection",
+      "version": "ver100"
+    },
+    "/functions/wifisetting": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/functions/wifisetting",
+      "version": "ver100"
+    },
+    "/functions/wifisetting/set1": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/functions/wifisetting/set1",
+      "version": "ver100"
+    },
+    "/functions/wifisetting/set2": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/functions/wifisetting/set2",
+      "version": "ver100"
+    },
+    "/functions/wifisetting/set3": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/functions/wifisetting/set3",
+      "version": "ver100"
+    },
+    "/shooting/control/af": {
+      "delete": false,
+      "get": false,
+      "post": true,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/control/af",
+      "version": "ver100"
+    },
+    "/shooting/control/drivefocus": {
+      "delete": false,
+      "get": false,
+      "post": true,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/control/drivefocus",
+      "version": "ver100"
+    },
+    "/shooting/control/moviemode": {
+      "delete": false,
+      "get": true,
+      "post": true,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/control/moviemode",
+      "version": "ver100"
+    },
+    "/shooting/control/recbutton": {
+      "delete": false,
+      "get": false,
+      "post": true,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/control/recbutton",
+      "version": "ver100"
+    },
+    "/shooting/control/shutterbutton": {
+      "delete": false,
+      "get": false,
+      "post": true,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/control/shutterbutton",
+      "version": "ver100"
+    },
+    "/shooting/control/shutterbutton/manual": {
+      "delete": false,
+      "get": false,
+      "post": true,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/control/shutterbutton/manual",
+      "version": "ver100"
+    },
+    "/shooting/information/recordable": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/information/recordable",
+      "version": "ver100"
+    },
+    "/shooting/liveview": {
+      "delete": false,
+      "get": false,
+      "post": true,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/liveview",
+      "version": "ver100"
+    },
+    "/shooting/liveview/angleinformation": {
+      "delete": false,
+      "get": false,
+      "post": true,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/liveview/angleinformation",
+      "version": "ver100"
+    },
+    "/shooting/liveview/flip": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/liveview/flip",
+      "version": "ver100"
+    },
+    "/shooting/liveview/flipdetail": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/liveview/flipdetail",
+      "version": "ver100"
+    },
+    "/shooting/liveview/rtp": {
+      "delete": false,
+      "get": true,
+      "post": true,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/liveview/rtp",
+      "version": "ver100"
+    },
+    "/shooting/liveview/rtpsessiondesc": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/liveview/rtpsessiondesc",
+      "version": "ver100"
+    },
+    "/shooting/liveview/scroll": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/liveview/scroll",
+      "version": "ver100"
+    },
+    "/shooting/liveview/scrolldetail": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/liveview/scrolldetail",
+      "version": "ver100"
+    },
+    "/shooting/settings": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/settings",
+      "version": "ver100"
+    },
+    "/shooting/settings/aeb": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/aeb",
+      "version": "ver100"
+    },
+    "/shooting/settings/afmethod": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/afmethod",
+      "version": "ver100"
+    },
+    "/shooting/settings/afoperation": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/settings/afoperation",
+      "version": "ver100"
+    },
+    "/shooting/settings/av": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/av",
+      "version": "ver100"
+    },
+    "/shooting/settings/colorspace": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/colorspace",
+      "version": "ver100"
+    },
+    "/shooting/settings/colortemperature": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/colortemperature",
+      "version": "ver100"
+    },
+    "/shooting/settings/drive": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/drive",
+      "version": "ver100"
+    },
+    "/shooting/settings/exposure": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/exposure",
+      "version": "ver100"
+    },
+    "/shooting/settings/flash": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/flash",
+      "version": "ver100"
+    },
+    "/shooting/settings/highframerate": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver110/shooting/settings/highframerate",
+      "version": "ver110"
+    },
+    "/shooting/settings/ismode": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/ismode",
+      "version": "ver100"
+    },
+    "/shooting/settings/iso": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/iso",
+      "version": "ver100"
+    },
+    "/shooting/settings/metering": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/metering",
+      "version": "ver100"
+    },
+    "/shooting/settings/moviequality": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/moviequality",
+      "version": "ver100"
+    },
+    "/shooting/settings/picturestyle": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/picturestyle",
+      "version": "ver100"
+    },
+    "/shooting/settings/picturestyle/auto": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/picturestyle/auto",
+      "version": "ver100"
+    },
+    "/shooting/settings/picturestyle/faithful": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/picturestyle/faithful",
+      "version": "ver100"
+    },
+    "/shooting/settings/picturestyle/finedetail": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/picturestyle/finedetail",
+      "version": "ver100"
+    },
+    "/shooting/settings/picturestyle/landscape": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/picturestyle/landscape",
+      "version": "ver100"
+    },
+    "/shooting/settings/picturestyle/monochrome": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/picturestyle/monochrome",
+      "version": "ver100"
+    },
+    "/shooting/settings/picturestyle/neutral": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/picturestyle/neutral",
+      "version": "ver100"
+    },
+    "/shooting/settings/picturestyle/portrait": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/picturestyle/portrait",
+      "version": "ver100"
+    },
+    "/shooting/settings/picturestyle/standard": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/picturestyle/standard",
+      "version": "ver100"
+    },
+    "/shooting/settings/picturestyle/userdef1": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/picturestyle/userdef1",
+      "version": "ver100"
+    },
+    "/shooting/settings/picturestyle/userdef1/basepicturestyle": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/picturestyle/userdef1/basepicturestyle",
+      "version": "ver100"
+    },
+    "/shooting/settings/picturestyle/userdef2": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/picturestyle/userdef2",
+      "version": "ver100"
+    },
+    "/shooting/settings/picturestyle/userdef2/basepicturestyle": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/picturestyle/userdef2/basepicturestyle",
+      "version": "ver100"
+    },
+    "/shooting/settings/picturestyle/userdef3": {
+      "delete": true,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/picturestyle/userdef3",
+      "version": "ver100"
+    },
+    "/shooting/settings/picturestyle/userdef3/basepicturestyle": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/picturestyle/userdef3/basepicturestyle",
+      "version": "ver100"
+    },
+    "/shooting/settings/shootingmodedial": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": false,
+      "url": "/ccapi/ver100/shooting/settings/shootingmodedial",
+      "version": "ver100"
+    },
+    "/shooting/settings/soundrecording": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/soundrecording",
+      "version": "ver100"
+    },
+    "/shooting/settings/soundrecording/attenuator": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/soundrecording/attenuator",
+      "version": "ver100"
+    },
+    "/shooting/settings/soundrecording/level": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/soundrecording/level",
+      "version": "ver100"
+    },
+    "/shooting/settings/soundrecording/windfilter": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/soundrecording/windfilter",
+      "version": "ver100"
+    },
+    "/shooting/settings/stillimageaspectratio": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/stillimageaspectratio",
+      "version": "ver100"
+    },
+    "/shooting/settings/stillimagequality": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/stillimagequality",
+      "version": "ver100"
+    },
+    "/shooting/settings/tv": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/tv",
+      "version": "ver100"
+    },
+    "/shooting/settings/wb": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/wb",
+      "version": "ver100"
+    },
+    "/shooting/settings/wbbracket": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/wbbracket",
+      "version": "ver100"
+    },
+    "/shooting/settings/wbshift": {
+      "delete": false,
+      "get": true,
+      "post": false,
+      "put": true,
+      "url": "/ccapi/ver100/shooting/settings/wbshift",
+      "version": "ver100"
+    }
+  },
+  "settings": {
+    "/devicestatus/battery": {
+      "kind": "ac_adapter",
+      "level": "",
+      "name": "DR-E17",
+      "quality": ""
+    },
+    "/devicestatus/lens": {
+      "mount": true,
+      "name": "RF-S18-45mm F4.5-6.3 IS STM"
+    },
+    "/devicestatus/storage": {
+      "storagelist": [
+        {
+          "accesscapability": "readwrite",
+          "contentsnumber": 50,
+          "maxsize": 7939817472,
+          "name": "sd",
+          "path": "/ccapi/ver130/contents/sd",
+          "spacesize": 7427227648
+        }
+      ]
+    },
+    "/devicestatus/temperature": {
+      "status": "normal"
+    },
+    "/functions/autopoweroff": {
+      "ability": [
+        "30",
+        "60",
+        "180",
+        "300",
+        "600",
+        "disable",
+        "immediately"
+      ],
+      "value": "disable"
+    },
+    "/functions/beep": {
+      "ability": [
+        "enable",
+        "disabletouch",
+        "disable"
+      ],
+      "value": "disable"
+    },
+    "/functions/datetime": {
+      "datetime": "Wed, 26 Aug 2026 23:18:51 +0100",
+      "dst": true
+    },
+    "/functions/displayoff": {
+      "ability": [
+        "15",
+        "30",
+        "60",
+        "180",
+        "300",
+        "600",
+        "1800"
+      ],
+      "value": "15"
+    },
+    "/functions/registeredname/author": {
+      "author": ""
+    },
+    "/functions/registeredname/copyright": {
+      "copyright": ""
+    },
+    "/functions/registeredname/nickname": {
+      "nickname": "EOSR100_006E4A"
+    },
+    "/functions/registeredname/ownername": {
+      "ownername": ""
+    },
+    "/functions/viewfinderoff": {
+      "ability": [
+        "1",
+        "3",
+        "off"
+      ],
+      "value": "off"
+    },
+    "/functions/wifisetting/set1": {
+      "authentication": "wpawpa2psk",
+      "channel": "",
+      "encryption": "tkipaes",
+      "gateway": "",
+      "ipaddress": "",
+      "ipaddressset": "auto",
+      "keyindex": "",
+      "method": "infrastructure",
+      "password": "********",
+      "ssid": "test",
+      "subnetmask": ""
+    },
+    "/functions/wifisetting/set2": {
+      "authentication": "wpawpa2psk",
+      "channel": "",
+      "encryption": "tkipaes",
+      "gateway": "",
+      "ipaddress": "",
+      "ipaddressset": "auto",
+      "keyindex": "",
+      "method": "infrastructure",
+      "password": "********",
+      "ssid": "test oben",
+      "subnetmask": ""
+    },
+    "/functions/wifisetting/set3": {
+      "authentication": "",
+      "channel": "",
+      "encryption": "",
+      "gateway": "",
+      "ipaddress": "",
+      "ipaddressset": "",
+      "keyindex": "",
+      "method": "",
+      "password": "",
+      "ssid": "",
+      "subnetmask": ""
+    },
+    "/shooting/information/recordable": {
+      "recordableshots": 3613,
+      "remainingtime": null
+    },
+    "/shooting/settings/aeb": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/afmethod": {
+      "ability": [
+        "face+tracking"
+      ],
+      "value": "face+tracking"
+    },
+    "/shooting/settings/afoperation": {
+      "value": "aifocus"
+    },
+    "/shooting/settings/av": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/colorspace": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/colortemperature": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/drive": {
+      "ability": [
+        "single",
+        "continuous",
+        "self_10sec",
+        "self_2sec",
+        "self_continuous"
+      ],
+      "value": "single"
+    },
+    "/shooting/settings/exposure": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/flash": {
+      "ability": [
+        "auto",
+        "on"
+      ],
+      "value": "auto"
+    },
+    "/shooting/settings/highframerate": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/ismode": {
+      "ability": [
+        "off",
+        "on"
+      ],
+      "value": "on"
+    },
+    "/shooting/settings/iso": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/metering": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/moviequality": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/picturestyle": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/picturestyle/auto": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/picturestyle/faithful": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/picturestyle/finedetail": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/picturestyle/landscape": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/picturestyle/monochrome": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/picturestyle/neutral": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/picturestyle/portrait": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/picturestyle/standard": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/picturestyle/userdef1": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/picturestyle/userdef1/basepicturestyle": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/picturestyle/userdef2": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/picturestyle/userdef2/basepicturestyle": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/picturestyle/userdef3": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/picturestyle/userdef3/basepicturestyle": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/shootingmodedial": {
+      "value": "a+"
+    },
+    "/shooting/settings/soundrecording": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/soundrecording/attenuator": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/soundrecording/level": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/soundrecording/windfilter": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/stillimageaspectratio": {
+      "ability": [
+        "3:2",
+        "4:3",
+        "16:9",
+        "1:1"
+      ],
+      "value": "3:2"
+    },
+    "/shooting/settings/stillimagequality": {
+      "ability": {
+        "jpeg": [
+          "none",
+          "large_fine",
+          "large_normal",
+          "medium_fine",
+          "medium_normal",
+          "small1_fine",
+          "small1_normal",
+          "small2"
+        ],
+        "raw": [
+          "none",
+          "raw",
+          "craw"
+        ]
+      },
+      "value": {
+        "jpeg": "small2",
+        "raw": "none"
+      }
+    },
+    "/shooting/settings/tv": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/wb": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/wbbracket": {
+      "error": "HTTP 503"
+    },
+    "/shooting/settings/wbshift": {
+      "error": "HTTP 503"
+    }
+  }
+}
