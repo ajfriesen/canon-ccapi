@@ -9,6 +9,7 @@ from .const import (
     DOMAIN,
     KEY_BATTERY,
     KEY_CONNECTED,
+    KEY_LENS,
     KEY_RECORDABLE,
     KEY_STORAGE,
     KEY_TEMPERATURE,
@@ -54,6 +55,7 @@ async def async_setup_entry(
         CanonStorageUsedPercentSensor(coordinator, entry),
         CanonStorageFilesSensor(coordinator, entry),
         CanonRecordableShotsSensor(coordinator, entry),
+        CanonLensSensor(coordinator, entry),
         CanonTemperatureSensor(coordinator, entry),
     ])
 
@@ -254,7 +256,6 @@ class CanonStorageTotalSensor(_CanonStorageBase):
     _attr_native_unit_of_measurement = UnitOfInformation.MEGABYTES
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_suggested_display_precision = 0
-    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: CcapiCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry, "storage_total")
@@ -358,3 +359,44 @@ class CanonRecordableShotsSensor(CoordinatorEntity, SensorEntity):
         # own permanently-unknown sensor.
         remaining = (self._recordable() or {}).get("remainingtime")
         return {"movie_remaining_time_s": remaining} if remaining is not None else {}
+
+
+class CanonLensSensor(CoordinatorEntity, SensorEntity):
+    """Attached lens, from /devicestatus/lens.
+
+    Refreshed on the slow cadence rather than the 10 s poll - glass does not
+    get swapped often enough to justify a request every ten seconds.
+    """
+
+    _attr_has_entity_name = True
+    _attr_name = "Lens"
+    _attr_icon = "mdi:camera-iris"
+
+    def __init__(self, coordinator: CcapiCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_lens"
+        self._attr_device_info = coordinator.build_device_info(entry)
+
+    def _lens(self) -> dict:
+        return (self.coordinator.data or {}).get(KEY_LENS) or {}
+
+    @property
+    def available(self) -> bool:
+        return bool(
+            self.coordinator.data and self.coordinator.data.get(KEY_CONNECTED)
+        )
+
+    @property
+    def native_value(self):
+        lens = self._lens()
+        if not lens:
+            return None
+        # mount False means no lens attached, and name is then absent or empty.
+        if not lens.get("mount"):
+            return "none"
+        return lens.get("name") or "unknown"
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        lens = self._lens()
+        return {"mounted": lens.get("mount")} if lens else {}

@@ -9,7 +9,9 @@
 | Connection | `binary_sensor` | `on` means `/ccapi` answered within 5 s. It does **not** mean the camera can shoot — live view being busy, a full card or an AF failure all still report `on`. |
 | Battery / Temperature | `sensor` | Polled every 10 s. Battery reads `unknown` on mains power - `kind` is then `ac_adapter` and the camera reports no level. |
 | Storage Free / Used / Used Percent / Files On Card | `sensor` | All from one `/devicestatus/storage` poll. Storage Free carries the card name, path and `readwrite` access as attributes. |
-| Storage Total | `sensor` | Disabled by default - it never changes. Enable it if you want the ratio on a chart. |
+| Storage Total | `sensor` | Card capacity. |
+| Lens | `sensor` | Attached lens name from `/devicestatus/lens`, `none` when nothing is mounted. Refreshed on the slow cadence - glass is not swapped every ten seconds. |
+| Copyright / Author / Owner Name / Nickname | `text` | `/functions/registeredname/*`, embedded into the EXIF of every shot. Note the field is **author**, not `artist` as the CCAPI reference calls it. |
 | Recordable Shots | `sensor` | From `/shooting/information/recordable`. Already accounts for the current image quality, so it answers "how many more shots" without arithmetic. |
 | Live View | `switch` | Explicit control. The camera entity starts live view lazily whenever anything asks for a frame, so this makes that visible and stoppable. |
 | Take Photo | `button` | Same path as the `canon_ccapi.take_photo` action. |

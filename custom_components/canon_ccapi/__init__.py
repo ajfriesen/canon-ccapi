@@ -38,7 +38,15 @@ SERVICE_TAKE_PHOTO_SCHEMA = vol.Schema(
     }
 )
 
-PLATFORMS = ["binary_sensor", "button", "camera", "select", "sensor", "switch"]
+PLATFORMS = [
+    "binary_sensor",
+    "button",
+    "camera",
+    "select",
+    "sensor",
+    "switch",
+    "text",
+]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

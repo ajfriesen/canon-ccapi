@@ -18,6 +18,7 @@ from .const import (
     KEY_CAPS,
     KEY_CONNECTED,
     KEY_DEVICE_INFO,
+    KEY_LENS,
     KEY_RECORDABLE,
     KEY_SETTINGS,
     KEY_STORAGE,
@@ -34,6 +35,12 @@ CAMERA_SETTINGS = {
     "autopoweroff": "/functions/autopoweroff",
     "beep": "/functions/beep",
     "stillimagequality": "/shooting/settings/stillimagequality",
+    # "author", not "artist" - the reference calls this field artist but this
+    # camera exposes author and 404s on artist.
+    "registeredname/copyright": "/functions/registeredname/copyright",
+    "registeredname/author": "/functions/registeredname/author",
+    "registeredname/ownername": "/functions/registeredname/ownername",
+    "registeredname/nickname": "/functions/registeredname/nickname",
 }
 
 # These only change when somebody changes them, so they do not justify a round
@@ -95,6 +102,7 @@ class CcapiCoordinator(DataUpdateCoordinator):
         self._setting_urls: dict = {}
         self._settings_tick = 0
         self._liveview_active = False
+        self._last_lens: dict = {}
 
     async def _async_update_data(self) -> dict:
         manifest_url = f"http://{self._host}:{self._port}/{CCAPI_BASE}"
@@ -235,6 +243,7 @@ class CcapiCoordinator(DataUpdateCoordinator):
             KEY_STORAGE: storage,
             KEY_TEMPERATURE: temperature,
             KEY_RECORDABLE: recordable,
+            KEY_LENS: self._last_lens,
             KEY_SETTINGS: self._last_settings,
             KEY_DEVICE_INFO: self._last_device_info,
         }
@@ -302,6 +311,39 @@ class CcapiCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("Live view %s failed: %s", "start" if on else "stop", exc)
         return False
 
+    async def async_set_registered_name(self, field: str, value: str) -> None:
+        """PUT one /functions/registeredname/ field.
+
+        These do not use the {"value": ...} envelope the other settings use -
+        the body key is the field name itself, e.g. {"copyright": "..."}.
+        """
+        name = f"registeredname/{field}"
+        url = self._setting_urls.get(name)
+        if not url:
+            raise HomeAssistantError(
+                f"Camera does not expose /functions/registeredname/{field}"
+            )
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.put(
+                    url,
+                    json={field: value},
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as resp:
+                    if resp.status != 200:
+                        body = await resp.text()
+                        raise HomeAssistantError(
+                            f"Setting {field} failed: HTTP {resp.status} {body}"
+                        )
+        except HomeAssistantError:
+            raise
+        except Exception as exc:
+            raise HomeAssistantError(f"Setting {field} failed: {exc}") from exc
+
+        self._last_settings.setdefault(name, {})[field] = value
+        self._settings_tick = 0
+        await self.async_request_refresh()
+
     def note_liveview_stopped(self) -> None:
         """Record that something else stopped live view, e.g. taking a photo."""
         self._liveview_active = False
@@ -330,6 +372,24 @@ class CcapiCoordinator(DataUpdateCoordinator):
         # does not blank out the select entities.
         if settings:
             self._last_settings = settings
+
+        # Lens rides the same slow cadence: it only changes when glass is
+        # swapped, so it does not belong in the 10 s poll.
+        lens_url = find_endpoint_url(
+            manifest, self._host, self._port, "/devicestatus/lens"
+        )
+        if lens_url:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(
+                        lens_url, timeout=aiohttp.ClientTimeout(total=5)
+                    ) as resp:
+                        if resp.status == 200:
+                            self._last_lens = await resp.json()
+                        else:
+                            _LOGGER.debug("Lens HTTP %s", resp.status)
+            except Exception as exc:
+                _LOGGER.debug("Lens fetch failed: %s", exc)
 
     async def async_set_setting(self, name: str, value) -> None:
         """PUT one /functions/ setting, then refresh the cached copy."""
@@ -388,6 +448,7 @@ class CcapiCoordinator(DataUpdateCoordinator):
             KEY_STORAGE: [],
             KEY_TEMPERATURE: None,
             KEY_RECORDABLE: None,
+            KEY_LENS: self._last_lens,
             KEY_SETTINGS: self._last_settings,
             KEY_DEVICE_INFO: self._last_device_info,
         }
