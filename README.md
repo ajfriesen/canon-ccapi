@@ -7,7 +7,11 @@
 | Entity | Platform | Notes |
 |---|---|---|
 | Connection | `binary_sensor` | `on` means `/ccapi` answered within 5 s. It does **not** mean the camera can shoot — live view being busy, a full card or an AF failure all still report `on`. |
-| Battery / Storage free / Temperature | `sensor` | Polled every 10 s. |
+| Battery / Temperature | `sensor` | Polled every 10 s. Battery reads `unknown` on mains power - `kind` is then `ac_adapter` and the camera reports no level. |
+| Storage Free / Used / Used Percent / Files On Card | `sensor` | All from one `/devicestatus/storage` poll. Storage Free carries the card name, path and `readwrite` access as attributes. |
+| Storage Total | `sensor` | Disabled by default - it never changes. Enable it if you want the ratio on a chart. |
+| Recordable Shots | `sensor` | From `/shooting/information/recordable`. Already accounts for the current image quality, so it answers "how many more shots" without arithmetic. |
+| Live View | `switch` | Explicit control. The camera entity starts live view lazily whenever anything asks for a frame, so this makes that visible and stoppable. |
 | Take Photo | `button` | Same path as the `canon_ccapi.take_photo` action. |
 | Live View | `camera` | Starts live view on demand and stops it again. |
 | Display off after | `select` | Seconds of inactivity before the rear screen sleeps. |

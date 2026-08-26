@@ -18,6 +18,7 @@ from .const import (
     KEY_CAPS,
     KEY_CONNECTED,
     KEY_DEVICE_INFO,
+    KEY_RECORDABLE,
     KEY_SETTINGS,
     KEY_STORAGE,
     KEY_TEMPERATURE,
@@ -146,6 +147,7 @@ class CcapiCoordinator(DataUpdateCoordinator):
         battery_url = find_endpoint_url(manifest, self._host, self._port, "/devicestatus/battery")
         storage_url = find_endpoint_url(manifest, self._host, self._port, "/devicestatus/storage")
         temperature_url = find_endpoint_url(manifest, self._host, self._port, "/devicestatus/temperature")
+        recordable_url = find_endpoint_url(manifest, self._host, self._port, "/shooting/information/recordable")
 
         _LOGGER.debug("Battery URL from manifest: %s", battery_url)
         _LOGGER.debug("Storage URL from manifest: %s", storage_url)
@@ -154,6 +156,7 @@ class CcapiCoordinator(DataUpdateCoordinator):
         battery = None
         storage = []
         temperature = None
+        recordable = None
 
         async with aiohttp.ClientSession() as session:
             if battery_url:
@@ -199,6 +202,23 @@ class CcapiCoordinator(DataUpdateCoordinator):
             else:
                 _LOGGER.debug("Temperature endpoint not in manifest, skipping")
 
+            # One extra GET per poll, justified for a camera left shooting
+            # unattended: "shots remaining" is the number that says when the
+            # card is about to run out.
+            if recordable_url:
+                try:
+                    async with session.get(
+                        recordable_url, timeout=aiohttp.ClientTimeout(total=5)
+                    ) as resp:
+                        if resp.status == 200:
+                            recordable = await resp.json()
+                        else:
+                            _LOGGER.debug("Recordable HTTP %s", resp.status)
+                except Exception as exc:
+                    _LOGGER.debug("Recordable fetch failed: %s", exc)
+            else:
+                _LOGGER.debug("Recordable endpoint not in manifest, skipping")
+
         refresh_settings = (
             not self._last_settings
             or self._settings_tick % SETTINGS_REFRESH_EVERY == 0
@@ -214,6 +234,7 @@ class CcapiCoordinator(DataUpdateCoordinator):
             KEY_BATTERY: battery,
             KEY_STORAGE: storage,
             KEY_TEMPERATURE: temperature,
+            KEY_RECORDABLE: recordable,
             KEY_SETTINGS: self._last_settings,
             KEY_DEVICE_INFO: self._last_device_info,
         }
@@ -366,6 +387,7 @@ class CcapiCoordinator(DataUpdateCoordinator):
             KEY_BATTERY: None,
             KEY_STORAGE: [],
             KEY_TEMPERATURE: None,
+            KEY_RECORDABLE: None,
             KEY_SETTINGS: self._last_settings,
             KEY_DEVICE_INFO: self._last_device_info,
         }
