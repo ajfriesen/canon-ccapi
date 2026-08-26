@@ -39,6 +39,21 @@ the first update and then roughly once a minute, rather than on every 10 s poll
 depends on being quick. Changing one from Home Assistant applies immediately
 and forces a re-read.
 
+## Camera capabilities and caveats
+
+`docs/capabilities/` holds, per camera model:
+
+- a generated dump of what the body advertises - every endpoint in its `/ccapi`
+  manifest and the allowed values for every readable setting. Regenerate with
+  `just capabilities`.
+- a hand-written caveats file: endpoints that are advertised and still fail,
+  request parameters that are silently ignored, and `ability` lists that differ
+  from the CCAPI reference.
+
+The second file exists because the first cannot answer "will this call work".
+Read the caveats before assuming an endpoint behaves as documented, and add to
+them when a camera surprises you.
+
 ## Actions
 
 ### `canon_ccapi.take_photo`
@@ -48,6 +63,29 @@ Triggers the shutter and downloads the image. Returns `{"path": ..., "filename":
 Raises `HomeAssistantError` on any failure — it never returns an error result —
 so callers that must survive a flaky camera should set `continue_on_error: true`
 and check that `path` is non-empty.
+
+## Development
+
+The repo ships a Nix flake with a Python 3.13 dev shell. With direnv:
+
+```bash
+direnv allow
+```
+
+Without direnv:
+
+```bash
+nix develop
+```
+
+Entering the shell runs `uv sync`, which builds `.venv` from `pyproject.toml`
+(`pytest-homeassistant-custom-component` pulls in a matching Home Assistant),
+and activates it. Then:
+
+```bash
+pytest        # tests/
+ruff check .  # lint
+```
 
 ## Links
 

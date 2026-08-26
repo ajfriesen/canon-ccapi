@@ -8,6 +8,11 @@ This records what **this body** supports, which is not always what the
 CCAPI reference describes - check here before assuming an endpoint or
 a setting value exists.
 
+> Being listed here means the firmware advertises it, **not** that the
+> call succeeds. For endpoints that are advertised and still fail, and
+> for values that differ from the reference, see
+> [`canon-eos-r100-caveats.md`](canon-eos-r100-caveats.md).
+
 ## Settings
 
 Current value and the values the camera reports as allowed.
@@ -20,7 +25,7 @@ Current value and the values the camera reports as allowed.
 | `/devicestatus/temperature` | `{"status": "normal"}` | - |
 | `/functions/autopoweroff` | `"disable"` | `30`, `60`, `180`, `300`, `600`, `disable`, `immediately` |
 | `/functions/beep` | `"disable"` | `enable`, `disabletouch`, `disable` |
-| `/functions/datetime` | `{"datetime": "Wed, 26 Aug 2026 23:18:51 +0100", "dst": true}` | - |
+| `/functions/datetime` | `{"datetime": "Wed, 26 Aug 2026 23:21:56 +0100", "dst": true}` | - |
 | `/functions/displayoff` | `"15"` | `15`, `30`, `60`, `180`, `300`, `600`, `1800` |
 | `/functions/registeredname/author` | `{"author": ""}` | - |
 | `/functions/registeredname/copyright` | `{"copyright": ""}` | - |

@@ -96,7 +96,7 @@ def main() -> int:
         "settings": settings,
     }
 
-    slug = re.sub(r"[^a-z0-9]+", "-", model.lower()).strip("-")
+    slug = slug_of(info)
     outdir = pathlib.Path(__file__).resolve().parent.parent / "docs" / "capabilities"
     outdir.mkdir(parents=True, exist_ok=True)
     # Not Path.with_suffix: firmware versions contain dots, so it would
@@ -108,6 +108,10 @@ def main() -> int:
     print(f"wrote {outdir}/{stem}.json and {stem}.md")
     print(f"  {len(endpoints)} endpoints, {len(settings)} settings read")
     return 0
+
+
+def slug_of(info: dict) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", info.get("productname", "unknown").lower()).strip("-")
 
 
 def render_md(out: dict) -> str:
@@ -122,6 +126,11 @@ def render_md(out: dict) -> str:
         "This records what **this body** supports, which is not always what the",
         "CCAPI reference describes - check here before assuming an endpoint or",
         "a setting value exists.",
+        "",
+        f"> Being listed here means the firmware advertises it, **not** that the",
+        f"> call succeeds. For endpoints that are advertised and still fail, and",
+        f"> for values that differ from the reference, see",
+        f"> [`{slug_of(info)}-caveats.md`]({slug_of(info)}-caveats.md).",
         "",
         "## Settings",
         "",
