@@ -93,6 +93,7 @@ class CcapiCoordinator(DataUpdateCoordinator):
         self._last_settings: dict = {}
         self._setting_urls: dict = {}
         self._settings_tick = 0
+        self._liveview_active = False
 
     async def _async_update_data(self) -> dict:
         manifest_url = f"http://{self._host}:{self._port}/{CCAPI_BASE}"
@@ -216,6 +217,73 @@ class CcapiCoordinator(DataUpdateCoordinator):
             KEY_SETTINGS: self._last_settings,
             KEY_DEVICE_INFO: self._last_device_info,
         }
+
+    @property
+    def liveview_active(self) -> bool:
+        """Whether we last succeeded in starting live view.
+
+        CCAPI exposes no way to query this, so it is tracked rather than read.
+        """
+        return self._liveview_active
+
+    def liveview_url(self) -> str:
+        caps = (self.data or {}).get(KEY_CAPS, {})
+        path = next(
+            (p for p, m in caps.items() if p.endswith("/shooting/liveview") and m.get("post")),
+            None,
+        )
+        if path:
+            return f"http://{self._host}:{self._port}{path}"
+        best_ver = (self.data or {}).get(KEY_BEST_VER, CCAPI_VER)
+        return f"http://{self._host}:{self._port}/{CCAPI_BASE}/{best_ver}/shooting/liveview"
+
+    async def async_set_liveview(self, on: bool, size: str = "small") -> bool:
+        """Start or stop live view. Returns True on success.
+
+        BOTH keys are mandatory. Sending liveviewsize alone is rejected with
+        "Invalid parameter" whatever its value - which is why the old
+        {"liveviewsize": "off"} never actually stopped anything, in take_photo
+        or anywhere else.
+
+        Stopping additionally requires cameradisplay "on": the camera refuses a
+        state where neither a client stream nor its own screen is showing the
+        scene, and answers 400 to off+off. The rear screen therefore comes back
+        on when live view stops; the displayoff timer blanks it again shortly.
+
+        Starting uses cameradisplay "off" so the preview streams to Home
+        Assistant without lighting up the camera's screen.
+
+        Verified sizes on an EOS R100: small and medium. large is rejected.
+        """
+        body = (
+            {"liveviewsize": size, "cameradisplay": "off"}
+            if on
+            else {"liveviewsize": "off", "cameradisplay": "on"}
+        )
+        url = self.liveview_url()
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url, json=body, timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
+                    text = await resp.text()
+                    if resp.status in (200, 201):
+                        self._liveview_active = on
+                        _LOGGER.debug("Live view %s", "started" if on else "stopped")
+                        return True
+                    _LOGGER.warning(
+                        "Live view %s failed: HTTP %s - %s",
+                        "start" if on else "stop",
+                        resp.status,
+                        text[:200],
+                    )
+        except Exception as exc:  # noqa: BLE001 - reported to the caller
+            _LOGGER.warning("Live view %s failed: %s", "start" if on else "stop", exc)
+        return False
+
+    def note_liveview_stopped(self) -> None:
+        """Record that something else stopped live view, e.g. taking a photo."""
+        self._liveview_active = False
 
     async def _async_fetch_settings(self, manifest: dict) -> None:
         """Cache the writable /functions/ settings and their allowed values."""

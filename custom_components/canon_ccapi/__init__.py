@@ -38,7 +38,7 @@ SERVICE_TAKE_PHOTO_SCHEMA = vol.Schema(
     }
 )
 
-PLATFORMS = ["binary_sensor", "button", "camera", "select", "sensor"]
+PLATFORMS = ["binary_sensor", "button", "camera", "select", "sensor", "switch"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -161,7 +161,11 @@ async def _do_take_photo(
             try:
                 async with session.post(
                     liveview_url,
-                    json={"liveviewsize": "off"},
+                    # Both keys are mandatory, and stopping requires
+                    # cameradisplay "on" - the camera answers 400 to off+off.
+                    # The old {"liveviewsize": "off"} was rejected every time,
+                    # so this never actually stopped anything.
+                    json={"liveviewsize": "off", "cameradisplay": "on"},
                     timeout=aiohttp.ClientTimeout(total=5),
                 ) as resp:
                     was_running = resp.status == 200

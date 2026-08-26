@@ -21,21 +21,45 @@ Treat a manifest entry as "worth trying", and handle the failure.
 
 ---
 
-## `POST /shooting/liveview` returns 400 when live view is not running
+## `POST /shooting/liveview` requires BOTH parameters
 
-Stopping live view that is already stopped is rejected, not treated as a no-op.
+Sending `liveviewsize` on its own is rejected whatever its value - including
+values the camera does accept when paired.
 
 ```
-POST /ccapi/ver100/shooting/liveview   {"liveviewsize": "off"}
-→ HTTP 400
+POST /ccapi/ver100/shooting/liveview  {"liveviewsize": "off"}     → 400 Invalid parameter
+POST /ccapi/ver100/shooting/liveview  {"liveviewsize": "small"}   → 400 Invalid parameter
+POST /ccapi/ver100/shooting/liveview  {"cameradisplay": "off"}    → 400 Invalid parameter
 ```
 
-**Impact.** Code that stops live view defensively before the shutter must not
-treat the response as meaningful, and must not pay a settle delay afterwards
-when it failed. We were sleeping 0.5 s after this call on every single photo for
-a teardown that never happened.
+What this body accepts:
 
-**Handling.** Only wait if the call returned 200.
+| liveviewsize | cameradisplay | result |
+|---|---|---|
+| `off` | `on` | 200 - stops live view |
+| `off` | `off` | 400 |
+| `off` | `keep` | 400 |
+| `small` | `off` | 200 - starts, rear screen stays dark |
+| `medium` | `off` | 200 |
+| `large` | `off` | 400 - size not supported |
+
+**Stopping requires `cameradisplay: "on"`.** The camera refuses a state where
+neither a client stream nor its own screen is showing the scene, so the rear
+screen comes back on when live view stops. The `displayoff` timer blanks it
+again shortly after.
+
+`keep` is documented for `cameradisplay` but rejected here. `large` is likewise
+not a valid size on this body.
+
+**Impact.** This was a silent, total failure: the integration sent
+`{"liveviewsize": "off"}` to stop live view before every shutter and on entity
+removal, and *every one of those calls was rejected*. Live view was never
+stopped by anything. The 400 was easy to misread as "it was not running" -
+it is not, it means the request was malformed.
+
+**Handling.** Always send both keys. Verify a stop actually worked by checking
+`/shooting/liveview/flip`, which answers 503 `Live view not started` once the
+stream is really down.
 
 ---
 
