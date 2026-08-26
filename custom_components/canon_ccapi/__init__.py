@@ -157,17 +157,28 @@ async def _do_take_photo(
         # Stop live view if active — camera returns 503 "Device busy" otherwise
         liveview_url = find_endpoint_url(manifest, host, port, "/shooting/liveview", method="post")
         if liveview_url:
+            was_running = False
             try:
                 async with session.post(
                     liveview_url,
                     json={"liveviewsize": "off"},
                     timeout=aiohttp.ClientTimeout(total=5),
                 ) as resp:
+                    was_running = resp.status == 200
                     _LOGGER.debug("Stop live view before shutter: HTTP %s", resp.status)
             except Exception as exc:
                 _LOGGER.debug("Stop live view before shutter failed (non-fatal): %s", exc)
-            await asyncio.sleep(0.5)
+            # Only wait for the stream to tear down if it was actually running.
+            # When it is not, the camera answers 400 and there is nothing to
+            # settle - this sleep was costing 0.5s on every single photo.
+            if was_running:
+                await asyncio.sleep(0.5)
         t_liveview = _t()
+
+        # Drain first, then shoot, then poll - the order CCAPI documents. Doing
+        # this before the shutter is what makes the post-shutter poll meaningful.
+        event_base_url = find_endpoint_url(manifest, host, port, "/event/polling") or f"{base}/event/polling"
+        await _drain_events(session, event_base_url)
 
         # Find the shutter endpoint from the manifest — don't assume it lives under best_ver
         shutter_url = find_endpoint_url(
@@ -189,8 +200,7 @@ async def _do_take_photo(
         t_shutter = _t()
         _LOGGER.debug("Shutter triggered, waiting for image via event polling...")
 
-        # Try event polling first — camera pushes addedcontents when image is written
-        event_base_url = find_endpoint_url(manifest, host, port, "/event/polling") or f"{base}/event/polling"
+        # Camera pushes addedcontents once the image is written.
         image_url = await _poll_for_new_image(session, event_base_url, host, port)
 
         if not image_url:
@@ -266,28 +276,76 @@ async def _do_take_photo(
         return {"path": dest, "filename": filename}
 
 
-async def _poll_for_new_image(
-    session: aiohttp.ClientSession, event_url: str, host: str, port: int
-) -> str | None:
-    """Long-poll the event endpoint for addedcontents; return image URL or None."""
+async def _drain_events(session: aiohttp.ClientSession, event_url: str) -> None:
+    """Empty the camera's event queue so the next poll only sees our own shot.
+
+    CCAPI documents the order as: poll once (returns {}), fire the shutter, poll
+    again (returns addedcontents). Without the first drain a stale queue entry
+    can be mistaken for the new photo, and an already-drained queue is what lets
+    the post-shutter poll answer meaningfully instead of instantly-empty.
+    """
     try:
         async with session.get(
-            event_url,
-            params={"timeout": "8"},
-            timeout=aiohttp.ClientTimeout(total=12),
+            event_url, timeout=aiohttp.ClientTimeout(total=5)
         ) as resp:
-            if resp.status == 200:
-                ev = await resp.json()
-                added = ev.get("addedcontents", [])
-                if added:
-                    _LOGGER.debug("Event polling found %d new item(s)", len(added))
-                    image_exts = {".jpg", ".jpeg", ".cr2", ".cr3", ".heif", ".heic"}
-                    for item in reversed(added):
-                        path = item if isinstance(item, str) else item.get("path") or item.get("url") or ""
-                        if os.path.splitext(path.lower().split("?")[0])[1] in image_exts:
-                            return _to_full_url(path, host, port)
+            await resp.read()
+            _LOGGER.debug("Drained event queue before shutter: HTTP %s", resp.status)
     except Exception as exc:
-        _LOGGER.debug("Event polling failed: %s", exc)
+        _LOGGER.debug("Event queue drain failed (non-fatal): %s", exc)
+
+
+def _image_from_added(added, host: str, port: int) -> str | None:
+    """Pick the newest image out of an addedcontents list."""
+    image_exts = {".jpg", ".jpeg", ".cr2", ".cr3", ".heif", ".heic"}
+    for item in reversed(added):
+        path = item if isinstance(item, str) else item.get("path") or item.get("url") or ""
+        if os.path.splitext(path.lower().split("?")[0])[1] in image_exts:
+            return _to_full_url(path, host, port)
+    return None
+
+
+async def _poll_for_new_image(
+    session: aiohttp.ClientSession,
+    event_url: str,
+    host: str,
+    port: int,
+    deadline_s: float = 6.0,
+) -> str | None:
+    """Poll the event endpoint until the camera reports the new image.
+
+    Previously this fired one GET with params={"timeout": "8"}, expecting the
+    camera to hold the request open. "timeout" is not a CCAPI parameter - the
+    documented long-poll is ?continue=on - so the camera answered immediately
+    with an empty queue, the caller treated that as "no image", and every photo
+    fell through to a blind 3 s sleep plus a storage-tree walk.
+
+    Short repeated polls get the same answer as soon as the camera actually has
+    it, without depending on chunked 100-Continue streaming.
+    """
+    deadline = asyncio.get_event_loop().time() + deadline_s
+    attempt = 0
+    while asyncio.get_event_loop().time() < deadline:
+        attempt += 1
+        try:
+            async with session.get(
+                event_url, timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
+                if resp.status == 200:
+                    ev = await resp.json()
+                    added = ev.get("addedcontents", [])
+                    if added:
+                        url = _image_from_added(added, host, port)
+                        if url:
+                            _LOGGER.debug(
+                                "Event polling found the image after %d poll(s)", attempt
+                            )
+                            return url
+                else:
+                    _LOGGER.debug("Event polling: HTTP %s", resp.status)
+        except Exception as exc:
+            _LOGGER.debug("Event polling attempt %d failed: %s", attempt, exc)
+        await asyncio.sleep(0.25)
+    _LOGGER.debug("Event polling gave up after %d poll(s)", attempt)
     return None
 
 
