@@ -17,10 +17,15 @@ from .coordinator import CcapiCoordinator
 #
 # Note "author", not "artist": the CCAPI reference calls this field artist, but
 # this camera exposes /functions/registeredname/author and rejects artist.
+#
+# ownername is deliberately absent. Writing it returns 200 and echoes the value
+# back, then takes the camera off the network a few seconds later until someone
+# power-cycles it - reproduced three times on fw 1.3.0, once with the
+# integration uninvolved. See docs/capabilities/canon-eos-r100-caveats.md.
+# Do not add it back as a TextEntity.
 _FIELDS: dict[str, dict] = {
     "copyright": {"name": "Copyright", "icon": "mdi:copyright", "max": 63},
     "author": {"name": "Author", "icon": "mdi:account-edit", "max": 63},
-    "ownername": {"name": "Owner Name", "icon": "mdi:account", "max": 31},
     "nickname": {"name": "Nickname", "icon": "mdi:tag", "max": 31},
 }
 

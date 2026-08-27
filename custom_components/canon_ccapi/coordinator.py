@@ -42,9 +42,12 @@ CAMERA_SETTINGS = {
     "datetime": "/functions/datetime",
     "registeredname/copyright": "/functions/registeredname/copyright",
     "registeredname/author": "/functions/registeredname/author",
-    "registeredname/ownername": "/functions/registeredname/ownername",
     "registeredname/nickname": "/functions/registeredname/nickname",
 }
+
+# registeredname/ownername is absent on purpose. Only GET is safe there; a PUT
+# takes the camera off the network until it is power-cycled, so the field is not
+# polled and no entity offers it. See docs/capabilities/canon-eos-r100-caveats.md.
 
 # These only change when somebody changes them, so they do not justify a round
 # trip on every 10 s poll: that would add several more serial 5 s-timeout GETs to
