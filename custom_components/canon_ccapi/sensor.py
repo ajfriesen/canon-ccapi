@@ -11,6 +11,7 @@ from .const import (
     KEY_CONNECTED,
     KEY_LENS,
     KEY_RECORDABLE,
+    KEY_SETTINGS,
     KEY_STORAGE,
     KEY_TEMPERATURE,
 )
@@ -57,6 +58,7 @@ async def async_setup_entry(
         CanonRecordableShotsSensor(coordinator, entry),
         CanonLensSensor(coordinator, entry),
         CanonTemperatureSensor(coordinator, entry),
+        CanonShootingModeSensor(coordinator, entry),
     ])
 
 
@@ -400,3 +402,62 @@ class CanonLensSensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self) -> dict:
         lens = self._lens()
         return {"mounted": lens.get("mount")} if lens else {}
+
+
+# The dial is physical: CCAPI reports it but offers no PUT, so the exposure
+# settings HA exposes are only writable in the modes that allow them. This
+# sensor exists so "why is ISO unavailable" has a visible answer.
+_SHOOTING_MODE_LABELS = {
+    "a+": "Scene Intelligent Auto",
+    "p": "Program AE",
+    "av": "Aperture Priority",
+    "tv": "Shutter Priority",
+    "m": "Manual",
+    "bulb": "Bulb",
+    "scn": "Special Scene",
+    "creativefilter": "Creative Filter",
+    "movie": "Movie",
+    "c1": "Custom 1",
+    "c2": "Custom 2",
+    "c3": "Custom 3",
+}
+
+
+class CanonShootingModeSensor(CoordinatorEntity, SensorEntity):
+    """Mode dial position, from /shooting/settings/shootingmodedial."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Shooting Mode"
+    _attr_icon = "mdi:camera-control"
+
+    def __init__(self, coordinator: CcapiCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_shootingmodedial"
+        self._attr_device_info = coordinator.build_device_info(entry)
+
+    def _value(self) -> str | None:
+        settings = (self.coordinator.data or {}).get(KEY_SETTINGS) or {}
+        raw = (settings.get("shootingmodedial") or {}).get("value")
+        return str(raw) if raw else None
+
+    @property
+    def available(self) -> bool:
+        return bool(
+            self.coordinator.data
+            and self.coordinator.data.get(KEY_CONNECTED)
+            and self._value() is not None
+        )
+
+    @property
+    def native_value(self):
+        raw = self._value()
+        if raw is None:
+            return None
+        return _SHOOTING_MODE_LABELS.get(raw, raw)
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        raw = self._value()
+        # The raw value is what the CCAPI docs and the caveats file talk about,
+        # so keep it addressable from templates even though the state is prose.
+        return {"dial": raw} if raw else {}

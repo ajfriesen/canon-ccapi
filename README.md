@@ -20,6 +20,9 @@
 | Display off after | `select` | Seconds of inactivity before the rear screen sleeps. |
 | Auto power off after | `select` | Seconds before the camera powers down, or `disable`. |
 | Beep | `select` | `enable` / `disable` / `disabletouch`. |
+| ISO / Aperture / Shutter Speed / Exposure Compensation / White Balance / Metering Mode | `select` | Exposure settings. **Unavailable while the mode dial is on A+** — see below. |
+| Drive Mode / Flash / AF Method / Image Stabilization / Aspect Ratio / Picture Style / Color Space | `select` | The rest of `/shooting/settings/*`. Which of these the camera offers also depends on the dial. |
+| Shooting Mode | `sensor` | Read-only dial position (`Scene Intelligent Auto`, `Program AE`, …), with the raw CCAPI value in the `dial` attribute. The dial is physical — CCAPI reports it but offers no `PUT`. |
 
 ### Camera settings (`select`)
 
@@ -45,6 +48,32 @@ the first update and then roughly once a minute, rather than on every 10 s poll
 — three extra serial requests per poll would slow down a cycle that shooting
 depends on being quick. Changing one from Home Assistant applies immediately
 and forces a re-read.
+
+### Shooting settings (`select`)
+
+ISO, aperture, shutter speed, exposure compensation, white balance, metering,
+drive mode, flash, AF method, image stabilization, aspect ratio, picture style
+and colour space, all from `/shooting/settings/*`. Options come from the
+camera's own `ability` list, so a body only ever offers values it accepts.
+
+All of them are read with a **single** `GET /shooting/settings`, which returns
+every shooting setting at once — exposing thirteen of them costs one request
+per refresh, not thirteen.
+
+**The mode dial decides what exists.** With the dial on **A+**, the camera
+answers `503 Mode not supported` for ISO, aperture, shutter, exposure
+compensation, white balance, metering, picture style and colour space, and
+reports them as `{"value": "", "ability": []}`. Those entities go
+`unavailable` until the dial is turned to `P` / `Tv` / `Av` / `M`. The dial is
+physical: CCAPI reports its position — that is the *Shooting Mode* sensor — but
+offers no way to change it, so this cannot be automated away.
+
+**Shooting settings do not survive a power-cycle.** The camera comes back on
+whatever its own menu holds. Anything set from Home Assistant is therefore
+remembered in the config entry and re-asserted on the next reconnect; a value
+the current dial position forbids is skipped rather than retried. Changes made
+on the camera body itself are never made sticky, and are left alone until the
+next reconnect rather than being fought every poll.
 
 ## Camera capabilities and caveats
 

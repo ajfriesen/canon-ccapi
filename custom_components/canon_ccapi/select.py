@@ -1,7 +1,15 @@
-"""Writable camera settings from CCAPI /functions/, exposed as selects.
+"""Writable camera settings exposed as selects.
 
-Covers displayoff, autopoweroff and beep. All three share the same shape:
-GET returns {"value": ..., "ability": [...]} and PUT takes {"value": ...}.
+Covers the /functions/ settings (displayoff, autopoweroff, beep) and the
+shooting settings (ISO, aperture, shutter, ...). They share one shape: GET
+returns {"value": ..., "ability": [...]} and PUT takes {"value": ...}, so one
+entity class serves both.
+
+Which shooting settings actually exist depends on the camera's mode dial. In
+A+ the body answers 503 "Mode not supported" for the exposure settings and
+reports them as {"value": "", "ability": []}; those entities go unavailable
+until the dial is moved to P/Tv/Av/M. The dial is physical - see the Shooting
+Mode sensor, which is there to make that visible.
 """
 
 from homeassistant.components.select import SelectEntity
@@ -32,6 +40,26 @@ _SETTINGS: dict[str, dict] = {
         "icon": "mdi:volume-high",
         "fallback": ["enable", "disable", "disabletouch"],
     },
+    # Shooting settings. No fallbacks: unlike the /functions/ ones above, these
+    # are only meaningful in the mode the camera is currently in, and their
+    # ability lists are long and body-specific. When the camera does not report
+    # one, the honest answer is unavailable rather than a guessed list.
+    # mdi has no ISO glyph - camera-iso does not exist and renders as a blank.
+    # film is the closest true thing: ISO *is* film speed. Check any new icon
+    # against the mdi set before using it.
+    "iso": {"name": "ISO", "icon": "mdi:film"},
+    "av": {"name": "Aperture", "icon": "mdi:camera-iris"},
+    "tv": {"name": "Shutter Speed", "icon": "mdi:camera-timer"},
+    "exposure": {"name": "Exposure Compensation", "icon": "mdi:plus-minus-variant"},
+    "wb": {"name": "White Balance", "icon": "mdi:white-balance-auto"},
+    "metering": {"name": "Metering Mode", "icon": "mdi:brightness-percent"},
+    "drive": {"name": "Drive Mode", "icon": "mdi:camera-burst"},
+    "flash": {"name": "Flash", "icon": "mdi:flash"},
+    "afmethod": {"name": "AF Method", "icon": "mdi:focus-auto"},
+    "ismode": {"name": "Image Stabilization", "icon": "mdi:camera-enhance"},
+    "stillimageaspectratio": {"name": "Aspect Ratio", "icon": "mdi:aspect-ratio"},
+    "picturestyle": {"name": "Picture Style", "icon": "mdi:palette"},
+    "colorspace": {"name": "Color Space", "icon": "mdi:palette-swatch"},
 }
 
 
@@ -74,7 +102,12 @@ class CanonSettingSelect(CoordinatorEntity, SelectEntity):
         return bool(
             self.coordinator.data
             and self.coordinator.data.get(KEY_CONNECTED)
-            and self._setting() is not None
+            # An empty options list would make the entity useless and HA
+            # rejects a current_option outside options, so a setting the
+            # camera reports as "" with no ability - which is how it says
+            # "not in this shooting mode" - counts as unavailable.
+            and self.current_option
+            and self.options
         )
 
     @property
@@ -84,19 +117,21 @@ class CanonSettingSelect(CoordinatorEntity, SelectEntity):
         if isinstance(ability, list) and ability:
             opts = [str(a) for a in ability]
         else:
-            opts = list(_SETTINGS[self._key]["fallback"])
+            opts = [str(o) for o in _SETTINGS[self._key].get("fallback", [])]
         # HA rejects a current_option that is not in options. Some bodies report
         # a value outside their own ability list, so keep it selectable rather
         # than letting the entity throw.
-        current = setting.get("value")
-        if current is not None and str(current) not in opts:
-            opts.append(str(current))
+        current = self.current_option
+        if current is not None and current not in opts:
+            opts.append(current)
         return opts
 
     @property
     def current_option(self) -> str | None:
         value = (self._setting() or {}).get("value")
-        return None if value is None else str(value)
+        # "" is how the camera says the current shooting mode does not offer
+        # this setting, not a selectable option.
+        return str(value) if value not in (None, "") else None
 
     async def async_select_option(self, option: str) -> None:
         await self.coordinator.async_set_setting(self._key, option)
