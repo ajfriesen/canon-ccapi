@@ -3,11 +3,11 @@ import logging
 import os
 
 import aiohttp
+import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
-from homeassistant.exceptions import HomeAssistantError
-import homeassistant.helpers.config_validation as cv
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
 from .const import (
     CCAPI_BASE,
@@ -37,6 +37,47 @@ SERVICE_TAKE_PHOTO_SCHEMA = vol.Schema(
         vol.Optional("delete_from_camera", default=False): cv.boolean,
     }
 )
+# Both destructive services demand a literal confirmation word rather than a
+# boolean. A stray `true` in a template is easy to produce by accident; the
+# exact string is not. This is the only guard - there are deliberately no
+# button entities, so nothing on a dashboard can wipe the card with one tap.
+SERVICE_DELETE_ALL_IMAGES = "delete_all_images"
+SERVICE_FORMAT_CARD = "format_card"
+
+CONFIRM_DELETE_ALL_IMAGES = "DELETE"
+CONFIRM_FORMAT_CARD = "FORMAT"
+
+SERVICE_DELETE_ALL_IMAGES_SCHEMA = vol.Schema(
+    {
+        vol.Required("confirm"): cv.string,
+    }
+)
+
+SERVICE_FORMAT_CARD_SCHEMA = vol.Schema(
+    {
+        vol.Required("confirm"): cv.string,
+        vol.Optional("name"): cv.string,
+    }
+)
+
+
+def _require_confirmation(call: ServiceCall, expected: str) -> None:
+    """Raise unless the caller typed the exact confirmation word.
+
+    ServiceValidationError, not HomeAssistantError: this is bad caller input,
+    so HA answers 400 with this message instead of 500 "Server got itself in
+    trouble" and a traceback that hides why the call was refused.
+
+    Compared exactly - no trim, no case folding. A guard that accepts
+    "delete " or "Delete" is a guard that accepts a stray template result.
+    """
+    got = call.data.get("confirm")
+    if got != expected:
+        raise ServiceValidationError(
+            f"{call.service} is destructive and was not confirmed: "
+            f'pass confirm: "{expected}" to proceed (got {got!r})'
+        )
+
 
 PLATFORMS = [
     "binary_sensor",
@@ -88,12 +129,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         supports_response=SupportsResponse.OPTIONAL,
     )
 
+    async def handle_delete_all_images(call: ServiceCall) -> dict:
+        _require_confirmation(call, CONFIRM_DELETE_ALL_IMAGES)
+        return await coordinator.async_delete_all_contents()
+
+    async def handle_format_card(call: ServiceCall) -> dict:
+        _require_confirmation(call, CONFIRM_FORMAT_CARD)
+        return await coordinator.async_format_card(call.data.get("name"))
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_DELETE_ALL_IMAGES,
+        handle_delete_all_images,
+        schema=SERVICE_DELETE_ALL_IMAGES_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_FORMAT_CARD,
+        handle_format_card,
+        schema=SERVICE_FORMAT_CARD_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     hass.services.async_remove(DOMAIN, SERVICE_TAKE_PHOTO)
+    hass.services.async_remove(DOMAIN, SERVICE_DELETE_ALL_IMAGES)
+    hass.services.async_remove(DOMAIN, SERVICE_FORMAT_CARD)
     hass.data[DOMAIN].pop(entry.entry_id)
     return True
 

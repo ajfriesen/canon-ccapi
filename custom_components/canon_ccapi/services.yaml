@@ -20,3 +20,40 @@ take_photo:
       default: false
       selector:
         boolean:
+
+delete_all_images:
+  name: Delete All Images
+  description: >-
+    Permanently delete every photo and video on the camera's card. Deletes each
+    DCIM directory in one request, so it is fast regardless of file count.
+    Cannot be undone.
+  fields:
+    confirm:
+      name: Confirm
+      description: Type DELETE to confirm. Anything else aborts without touching the card.
+      required: true
+      example: "DELETE"
+      selector:
+        text:
+
+format_card:
+  name: Format Card
+  description: >-
+    Format a card in the camera. Destroys everything on it, including files
+    this integration did not create. Cannot be undone.
+  fields:
+    confirm:
+      name: Confirm
+      description: Type FORMAT to confirm. Anything else aborts without touching the card.
+      required: true
+      example: "FORMAT"
+      selector:
+        text:
+    name:
+      name: Card
+      description: >-
+        Which card to format, as reported by the camera. Defaults to the first
+        card the camera lists, which on a single-slot body is the only one.
+      example: "sd"
+      selector:
+        text:

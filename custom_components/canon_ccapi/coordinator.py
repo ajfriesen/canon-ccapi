@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
@@ -582,6 +582,141 @@ class CcapiCoordinator(DataUpdateCoordinator):
             current,
             value,
         )
+
+    def _caps_url(self, suffix: str, method: str) -> str | None:
+        """Resolve a full URL from the cached capability table.
+
+        find_endpoint_url() needs the raw manifest, which is not retained -
+        only the parsed path->methods map. Paths there are fully versioned
+        ("/ccapi/ver130/contents"), so a plain string comparison picks the
+        highest version among equal suffixes.
+        """
+        best = None
+        for path, methods in (self._last_caps or {}).items():
+            if path.endswith(suffix) and methods.get(method):
+                if best is None or path > best:
+                    best = path
+        return f"http://{self._host}:{self._port}{best}" if best else None
+
+    async def _contents_children(
+        self, session: aiohttp.ClientSession, url: str
+    ) -> list[str]:
+        """Return the child paths of a node in the /contents tree."""
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+            if resp.status != 200:
+                body = await resp.text()
+                raise HomeAssistantError(f"GET {url} failed: HTTP {resp.status} {body}")
+            data = await resp.json()
+        return [
+            f"http://{self._host}:{self._port}{p}"
+            for p in data.get("path", [])
+            if isinstance(p, str)
+        ]
+
+    async def async_delete_all_contents(self) -> dict:
+        """Delete every image on every card by removing each DCIM directory.
+
+        DELETE is only accepted on directory nodes. Both /contents and
+        /contents/sd answer 405 "Method not allowed" even though the manifest
+        advertises delete on /contents - so walk down to the 1xxCANON level
+        and delete there. One request per directory, not per file.
+        """
+        root = self._caps_url("/contents", "get")
+        if not root:
+            raise HomeAssistantError("Camera does not expose /contents")
+
+        deleted_files = 0
+        directories: list[str] = []
+        try:
+            async with aiohttp.ClientSession() as session:
+                for storage in await self._contents_children(session, root):
+                    for directory in await self._contents_children(session, storage):
+                        # Count before deleting, purely so the caller can be
+                        # told what was destroyed. A failure here must not
+                        # block the delete.
+                        try:
+                            async with session.get(
+                                f"{directory}?kind=number",
+                                timeout=aiohttp.ClientTimeout(total=15),
+                            ) as resp:
+                                if resp.status == 200:
+                                    body = await resp.json()
+                                    deleted_files += int(body.get("contentsnumber", 0))
+                        except Exception as exc:
+                            _LOGGER.debug("Counting %s failed: %s", directory, exc)
+
+                        async with session.delete(
+                            directory, timeout=aiohttp.ClientTimeout(total=120)
+                        ) as resp:
+                            if resp.status != 200:
+                                body = await resp.text()
+                                raise HomeAssistantError(
+                                    f"Deleting {directory} failed: "
+                                    f"HTTP {resp.status} {body}"
+                                )
+                        directories.append(directory.rsplit("/", 1)[-1])
+        except HomeAssistantError:
+            raise
+        except Exception as exc:
+            raise HomeAssistantError(f"Deleting all images failed: {exc}") from exc
+
+        _LOGGER.info(
+            "Deleted %s file(s) from %s directory(ies): %s",
+            deleted_files,
+            len(directories),
+            ", ".join(directories) or "none",
+        )
+        await self.async_request_refresh()
+        return {"deleted": deleted_files, "directories": directories}
+
+    async def async_format_card(self, name: str | None = None) -> dict:
+        """Format a card.
+
+        POST /functions/cardformat with {"name": "<storage name>"}. The
+        reference's "formattype" is accepted but NOT validated on the R100 -
+        an unknown value still returns 200 - so it is not sent, rather than
+        implying a choice the camera does not honour.
+        """
+        url = self._caps_url("/functions/cardformat", "post")
+        if not url:
+            raise HomeAssistantError("Camera does not expose /functions/cardformat")
+
+        storages = [
+            s.get("name")
+            for s in (self.data or {}).get(KEY_STORAGE, [])
+            if isinstance(s, dict) and s.get("name")
+        ]
+        if name is None:
+            if not storages:
+                raise HomeAssistantError(
+                    "No card reported by the camera - cannot pick one to format"
+                )
+            name = storages[0]
+        elif storages and name not in storages:
+            raise ServiceValidationError(
+                f"Camera reports no card named {name!r} (has: {', '.join(storages)})"
+            )
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url,
+                    json={"name": name},
+                    timeout=aiohttp.ClientTimeout(total=180),
+                ) as resp:
+                    if resp.status != 200:
+                        body = await resp.text()
+                        raise HomeAssistantError(
+                            f"Formatting {name} failed: HTTP {resp.status} {body}"
+                        )
+        except HomeAssistantError:
+            raise
+        except Exception as exc:
+            raise HomeAssistantError(f"Formatting {name} failed: {exc}") from exc
+
+        _LOGGER.info("Formatted card %s", name)
+        await self.async_request_refresh()
+        return {"formatted": name}
 
     def build_device_info(self, entry) -> dict:
         info = self._last_device_info
