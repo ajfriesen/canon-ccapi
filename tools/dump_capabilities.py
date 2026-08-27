@@ -60,7 +60,6 @@ def main() -> int:
 
     info, _ = get(f"{base}/ccapi/ver100/deviceinformation")
     info = info or {}
-    model = info.get("productname", "unknown")
     fw = info.get("firmwareversion", "unknown")
 
     # path -> {version, get/post/put/delete}
@@ -127,9 +126,9 @@ def render_md(out: dict) -> str:
         "CCAPI reference describes - check here before assuming an endpoint or",
         "a setting value exists.",
         "",
-        f"> Being listed here means the firmware advertises it, **not** that the",
-        f"> call succeeds. For endpoints that are advertised and still fail, and",
-        f"> for values that differ from the reference, see",
+        "> Being listed here means the firmware advertises it, **not** that the",
+        "> call succeeds. For endpoints that are advertised and still fail, and",
+        "> for values that differ from the reference, see",
         f"> [`{slug_of(info)}-caveats.md`]({slug_of(info)}-caveats.md).",
         "",
         "## Settings",

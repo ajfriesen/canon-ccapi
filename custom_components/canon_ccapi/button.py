@@ -1,16 +1,15 @@
 import os
 
 from homeassistant.components.button import ButtonEntity
-from homeassistant.const import EntityCategory
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_HOST, CONF_PORT, DEFAULT_SAVE_PATH, DOMAIN, KEY_CONNECTED
-
-from .coordinator import CcapiCoordinator
 from . import _do_take_photo
+from .const import CONF_HOST, CONF_PORT, DEFAULT_SAVE_PATH, DOMAIN, KEY_CONNECTED
+from .coordinator import CcapiCoordinator
 
 
 async def async_setup_entry(

@@ -8,7 +8,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CCAPI_BASE, CCAPI_VER, CONF_HOST, CONF_PORT, DOMAIN, KEY_BEST_VER, KEY_CAPS, KEY_CONNECTED
+from .const import DOMAIN, KEY_CONNECTED
 from .coordinator import CcapiCoordinator
 
 _LOGGER = logging.getLogger(__name__)

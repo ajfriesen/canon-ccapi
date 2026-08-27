@@ -6,7 +6,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, DEFAULT_PORT, CONF_HOST, CONF_PORT, CCAPI_BASE, CCAPI_VER
+from .const import CCAPI_BASE, CCAPI_VER, CONF_HOST, CONF_PORT, DEFAULT_PORT, DOMAIN
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {

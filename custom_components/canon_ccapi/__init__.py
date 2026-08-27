@@ -16,7 +16,6 @@ from .const import (
     CONF_PORT,
     DEFAULT_SAVE_PATH,
     DOMAIN,
-    KEY_BEST_VER,
 )
 from .coordinator import CcapiCoordinator, find_endpoint_url
 
@@ -181,11 +180,11 @@ async def _do_take_photo(
         await hass.async_add_executor_job(
             lambda: os.makedirs(save_path, exist_ok=True)
         )
-    except PermissionError:
+    except PermissionError as err:
         raise HomeAssistantError(
             f"Cannot create photo directory '{save_path}': permission denied. "
             "Pass a custom save_path to the take_photo service."
-        )
+        ) from err
 
     t_start = _t()
     manifest_url = f"http://{host}:{port}/{CCAPI_BASE}"
@@ -216,7 +215,7 @@ async def _do_take_photo(
                         )
             except HomeAssistantError:
                 raise
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 _LOGGER.debug("Camera poll timed out, retrying...")
             except Exception as exc:
                 _LOGGER.debug("Camera poll error: %s (%s)", exc, type(exc).__name__)
