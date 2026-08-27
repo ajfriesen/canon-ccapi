@@ -20,3 +20,9 @@ KEY_DEVICE_INFO = "device_info"
 KEY_SETTINGS = "settings"
 KEY_RECORDABLE = "recordable"
 KEY_LENS = "lens"
+
+# Config entry option: the stillimagequality the user last chose in HA.
+# Shooting settings do not survive a camera power-cycle (identity settings do),
+# so the chosen value is remembered and re-asserted on reconnect. Only values
+# set through HA land here - the camera's own menu is never second-guessed.
+OPT_STICKY_QUALITY = "sticky_stillimagequality"

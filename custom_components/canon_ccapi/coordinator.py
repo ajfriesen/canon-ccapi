@@ -4,6 +4,7 @@ from datetime import timedelta
 from urllib.parse import urlparse
 
 import aiohttp
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -25,6 +26,7 @@ from .const import (
     KEY_SETTINGS,
     KEY_STORAGE,
     KEY_TEMPERATURE,
+    OPT_STICKY_QUALITY,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -99,12 +101,12 @@ def find_endpoint_url(
 
 class CcapiCoordinator(DataUpdateCoordinator):
     def __init__(
-        self, hass: HomeAssistant, host: str, port: int, entry_id: str
+        self, hass: HomeAssistant, host: str, port: int, entry: ConfigEntry
     ) -> None:
         super().__init__(
             hass,
             _LOGGER,
-            name=f"canon_ccapi_{entry_id}",
+            name=f"canon_ccapi_{entry.entry_id}",
             update_interval=SCAN_INTERVAL,
         )
         self._host = host
@@ -117,6 +119,10 @@ class CcapiCoordinator(DataUpdateCoordinator):
         self._settings_tick = 0
         self._liveview_active = False
         self._last_lens: dict = {}
+        self._entry = entry
+        # False until the first successful poll, so an HA restart counts as a
+        # reconnect and re-asserts the sticky quality too.
+        self._was_connected = False
 
     async def _async_update_data(self) -> dict:
         manifest_url = f"http://{self._host}:{self._port}/{CCAPI_BASE}"
@@ -241,13 +247,22 @@ class CcapiCoordinator(DataUpdateCoordinator):
             else:
                 _LOGGER.debug("Recordable endpoint not in manifest, skipping")
 
+        # A reconnect forces a settings read: the cache is up to 6 ticks old,
+        # and comparing the sticky value against a stale cache would conclude
+        # the camera still holds it when it has already reverted.
+        reconnected = not self._was_connected
+        self._was_connected = True
+
         refresh_settings = (
-            not self._last_settings
+            reconnected
+            or not self._last_settings
             or self._settings_tick % SETTINGS_REFRESH_EVERY == 0
         )
         self._settings_tick += 1
         if refresh_settings:
             await self._async_fetch_settings(manifest)
+        if reconnected:
+            await self._async_restore_sticky_quality()
 
         return {
             KEY_CONNECTED: True,
@@ -486,11 +501,87 @@ class CcapiCoordinator(DataUpdateCoordinator):
         except Exception as exc:
             raise HomeAssistantError(f"Setting {name}={value} failed: {exc}") from exc
 
+        # Remember a deliberate quality choice so it can be restored after the
+        # camera loses power and silently reverts it. Only this path writes the
+        # option, so a change made on the camera body is never made sticky.
+        if name == "stillimagequality" and isinstance(value, dict):
+            self.hass.config_entries.async_update_entry(
+                self._entry,
+                options={**dict(self._entry.options), OPT_STICKY_QUALITY: dict(value)},
+            )
+
         # Reflect it immediately for a responsive UI, then force a real re-read
         # on the next poll rather than trusting the optimistic value.
         self._last_settings.setdefault(name, {})["value"] = value
         self._settings_tick = 0
         await self.async_request_refresh()
+
+    async def _async_restore_sticky_quality(self) -> None:
+        """Re-assert the user's chosen image quality after a reconnect.
+
+        The camera drops shooting settings on a power-cycle and restores
+        whatever its own menu holds - so after any blip the booth silently
+        starts producing much larger files, and every timeout tuned around the
+        old size is wrong. Identity settings (copyright, nickname) are NOT
+        affected and need no equivalent.
+
+        Only runs on a connect transition, never on a steady-state poll: a
+        change made on the camera body while it is up is left alone until the
+        next reconnect, rather than being fought every 16 seconds.
+
+        The PUT is inline rather than via async_set_setting() because this runs
+        inside _async_update_data() - async_set_setting() ends with
+        async_request_refresh(), and re-entering a refresh from inside one is
+        not worth the risk for a call whose result is already in hand.
+        """
+        desired = (self._entry.options or {}).get(OPT_STICKY_QUALITY)
+        if not isinstance(desired, dict) or not desired:
+            return
+
+        current = (self._last_settings.get("stillimagequality") or {}).get("value")
+        if not isinstance(current, dict):
+            return
+        # The camera reports "" for both fields when the shooting mode forbids
+        # changing them. Re-asserting then earns a 503 and nothing else.
+        if not any(current.values()):
+            return
+        if all(current.get(k) == v for k, v in desired.items()):
+            return
+
+        url = self._setting_urls.get("stillimagequality")
+        if not url:
+            return
+
+        # Both sub-values are mandatory on this endpoint, so merge rather than
+        # sending only the fields that drifted.
+        value = {**current, **desired}
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.put(
+                    url,
+                    json={"value": value},
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as resp:
+                    if resp.status != 200:
+                        body = await resp.text()
+                        _LOGGER.warning(
+                            "Restoring stillimagequality to %s failed: HTTP %s %s",
+                            value,
+                            resp.status,
+                            body,
+                        )
+                        return
+        except Exception as exc:
+            _LOGGER.warning("Restoring stillimagequality to %s failed: %s", value, exc)
+            return
+
+        self._last_settings.setdefault("stillimagequality", {})["value"] = value
+        _LOGGER.warning(
+            "Camera came back with stillimagequality %s, restored %s - "
+            "shooting settings do not survive a power-cycle",
+            current,
+            value,
+        )
 
     def build_device_info(self, entry) -> dict:
         info = self._last_device_info
@@ -511,6 +602,7 @@ class CcapiCoordinator(DataUpdateCoordinator):
         return d
 
     def _disconnected(self) -> dict:
+        self._was_connected = False
         return {
             KEY_CONNECTED: False,
             KEY_BEST_VER: self._last_best_ver,
