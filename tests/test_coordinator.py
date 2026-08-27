@@ -3,6 +3,7 @@
 from custom_components.canon_ccapi.coordinator import (
     find_endpoint_url,
     merge_shooting_settings,
+    sticky_updates,
 )
 
 MANIFEST = {
@@ -61,3 +62,26 @@ def test_merge_tolerates_junk():
     assert merge_shooting_settings({"iso": "not-a-dict"}) == {}
 
 
+def test_sticky_skips_settings_the_mode_forbids():
+    # iso reads "" in A+; re-asserting would only earn a 503.
+    assert sticky_updates({"iso": "400"}, AGGREGATE) == {}
+
+
+def test_sticky_skips_values_already_correct():
+    assert sticky_updates({"drive": "single"}, AGGREGATE) == {}
+
+
+def test_sticky_returns_drifted_value():
+    assert sticky_updates({"drive": "continuous"}, AGGREGATE) == {"drive": "continuous"}
+
+
+def test_sticky_merges_image_quality_sub_values():
+    # The endpoint rejects a PUT that omits either sub-value, so raw has to be
+    # carried over from what the camera currently holds.
+    assert sticky_updates({"stillimagequality": {"jpeg": "large_fine"}}, AGGREGATE) == {
+        "stillimagequality": {"raw": "none", "jpeg": "large_fine"}
+    }
+
+
+def test_sticky_skips_unknown_setting():
+    assert sticky_updates({"displayoff": "30"}, AGGREGATE) == {}

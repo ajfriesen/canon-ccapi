@@ -27,6 +27,7 @@ from .const import (
     KEY_STORAGE,
     KEY_TEMPERATURE,
     OPT_STICKY_QUALITY,
+    OPT_STICKY_SETTINGS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -149,6 +150,35 @@ def merge_shooting_settings(aggregate: dict) -> dict:
         for name in wanted
         if isinstance(aggregate.get(name), dict)
     }
+
+
+def sticky_updates(desired: dict, current: dict) -> dict:
+    """Which remembered settings need re-asserting, name -> value to PUT.
+
+    `current` is the cached settings map as read from the camera. A setting is
+    skipped when:
+
+    - the camera does not report it at all, or reports "" / an empty dict - the
+      current mode dial position forbids it, and a PUT would earn a 503;
+    - it already holds the wanted value.
+
+    stillimagequality is merged rather than replaced: that endpoint carries
+    jpeg and raw together and rejects a PUT that omits either.
+    """
+    updates: dict = {}
+    for name, want in (desired or {}).items():
+        have = (current.get(name) or {}).get("value")
+        if have is None or have == "" or (isinstance(have, dict) and not any(have.values())):
+            continue
+        if isinstance(want, dict) and isinstance(have, dict):
+            merged = {**have, **want}
+            if merged != have:
+                updates[name] = merged
+        elif have != want:
+            updates[name] = want
+    return updates
+
+
 class CcapiCoordinator(DataUpdateCoordinator):
     def __init__(
         self, hass: HomeAssistant, host: str, port: int, entry: ConfigEntry
@@ -312,7 +342,7 @@ class CcapiCoordinator(DataUpdateCoordinator):
         if refresh_settings:
             await self._async_fetch_settings(manifest)
         if reconnected:
-            await self._async_restore_sticky_quality()
+            await self._async_restore_sticky_settings()
 
         return {
             KEY_CONNECTED: True,
@@ -599,13 +629,16 @@ class CcapiCoordinator(DataUpdateCoordinator):
         except Exception as exc:
             raise HomeAssistantError(f"Setting {name}={value} failed: {exc}") from exc
 
-        # Remember a deliberate quality choice so it can be restored after the
+        # Remember a deliberate shooting choice so it can be restored after the
         # camera loses power and silently reverts it. Only this path writes the
         # option, so a change made on the camera body is never made sticky.
-        if name == "stillimagequality" and isinstance(value, dict):
+        # /functions/ settings survive a power-cycle and are left out.
+        if name in SHOOTING_SETTINGS:
+            sticky = dict(self._sticky_settings())
+            sticky[name] = dict(value) if isinstance(value, dict) else value
             self.hass.config_entries.async_update_entry(
                 self._entry,
-                options={**dict(self._entry.options), OPT_STICKY_QUALITY: dict(value)},
+                options={**dict(self._entry.options), OPT_STICKY_SETTINGS: sticky},
             )
 
         # Reflect it immediately for a responsive UI, then force a real re-read
@@ -614,72 +647,86 @@ class CcapiCoordinator(DataUpdateCoordinator):
         self._settings_tick = 0
         await self.async_request_refresh()
 
-    async def _async_restore_sticky_quality(self) -> None:
-        """Re-assert the user's chosen image quality after a reconnect.
+    def _sticky_settings(self) -> dict:
+        """The remembered shooting settings, migrating the old option in place.
+
+        The option used to hold stillimagequality alone under its own key. An
+        entry created before that change still carries it, so fold it into the
+        map on first read rather than silently forgetting what the user picked.
+        """
+        options = dict(self._entry.options or {})
+        sticky = options.get(OPT_STICKY_SETTINGS)
+        sticky = dict(sticky) if isinstance(sticky, dict) else {}
+
+        legacy = options.pop(OPT_STICKY_QUALITY, None)
+        if isinstance(legacy, dict) and legacy:
+            sticky.setdefault("stillimagequality", dict(legacy))
+            options[OPT_STICKY_SETTINGS] = sticky
+            self.hass.config_entries.async_update_entry(self._entry, options=options)
+            _LOGGER.debug("Migrated sticky stillimagequality into %s", OPT_STICKY_SETTINGS)
+
+        return sticky
+
+    async def _async_restore_sticky_settings(self) -> None:
+        """Re-assert the shooting settings chosen in HA after a reconnect.
 
         The camera drops shooting settings on a power-cycle and restores
         whatever its own menu holds - so after any blip the booth silently
-        starts producing much larger files, and every timeout tuned around the
-        old size is wrong. Identity settings (copyright, nickname) are NOT
-        affected and need no equivalent.
+        starts shooting at a different ISO or image size, and every timeout
+        tuned around the old settings is wrong. Identity settings (copyright,
+        nickname) are NOT affected and need no equivalent.
 
         Only runs on a connect transition, never on a steady-state poll: a
         change made on the camera body while it is up is left alone until the
-        next reconnect, rather than being fought every 16 seconds.
+        next reconnect, rather than being fought every 16 seconds. Settings the
+        current mode dial position forbids are skipped rather than retried -
+        see sticky_updates().
 
-        The PUT is inline rather than via async_set_setting() because this runs
-        inside _async_update_data() - async_set_setting() ends with
+        The PUTs are inline rather than via async_set_setting() because this
+        runs inside _async_update_data() - async_set_setting() ends with
         async_request_refresh(), and re-entering a refresh from inside one is
-        not worth the risk for a call whose result is already in hand.
+        not worth the risk for calls whose results are already in hand.
         """
-        desired = (self._entry.options or {}).get(OPT_STICKY_QUALITY)
-        if not isinstance(desired, dict) or not desired:
+        updates = sticky_updates(self._sticky_settings(), self._last_settings)
+        if not updates:
             return
 
-        current = (self._last_settings.get("stillimagequality") or {}).get("value")
-        if not isinstance(current, dict):
-            return
-        # The camera reports "" for both fields when the shooting mode forbids
-        # changing them. Re-asserting then earns a 503 and nothing else.
-        if not any(current.values()):
-            return
-        if all(current.get(k) == v for k, v in desired.items()):
-            return
+        restored: dict = {}
+        async with aiohttp.ClientSession() as session:
+            for name, value in updates.items():
+                url = self._setting_urls.get(name)
+                if not url:
+                    continue
+                try:
+                    async with session.put(
+                        url,
+                        json={"value": value},
+                        timeout=aiohttp.ClientTimeout(total=10),
+                    ) as resp:
+                        if resp.status != 200:
+                            body = await resp.text()
+                            _LOGGER.warning(
+                                "Restoring %s to %s failed: HTTP %s %s",
+                                name,
+                                value,
+                                resp.status,
+                                body,
+                            )
+                            continue
+                except Exception as exc:
+                    # One rejected setting must not stop the rest from being
+                    # restored - they are independent endpoints.
+                    _LOGGER.warning("Restoring %s to %s failed: %s", name, value, exc)
+                    continue
+                self._last_settings.setdefault(name, {})["value"] = value
+                restored[name] = value
 
-        url = self._setting_urls.get("stillimagequality")
-        if not url:
-            return
-
-        # Both sub-values are mandatory on this endpoint, so merge rather than
-        # sending only the fields that drifted.
-        value = {**current, **desired}
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.put(
-                    url,
-                    json={"value": value},
-                    timeout=aiohttp.ClientTimeout(total=10),
-                ) as resp:
-                    if resp.status != 200:
-                        body = await resp.text()
-                        _LOGGER.warning(
-                            "Restoring stillimagequality to %s failed: HTTP %s %s",
-                            value,
-                            resp.status,
-                            body,
-                        )
-                        return
-        except Exception as exc:
-            _LOGGER.warning("Restoring stillimagequality to %s failed: %s", value, exc)
-            return
-
-        self._last_settings.setdefault("stillimagequality", {})["value"] = value
-        _LOGGER.warning(
-            "Camera came back with stillimagequality %s, restored %s - "
-            "shooting settings do not survive a power-cycle",
-            current,
-            value,
-        )
+        if restored:
+            _LOGGER.warning(
+                "Camera came back with different shooting settings, restored %s - "
+                "shooting settings do not survive a power-cycle",
+                restored,
+            )
 
     def _caps_url(self, suffix: str, method: str) -> str | None:
         """Resolve a full URL from the cached capability table.

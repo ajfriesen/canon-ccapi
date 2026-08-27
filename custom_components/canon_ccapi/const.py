@@ -21,8 +21,13 @@ KEY_SETTINGS = "settings"
 KEY_RECORDABLE = "recordable"
 KEY_LENS = "lens"
 
-# Config entry option: the stillimagequality the user last chose in HA.
-# Shooting settings do not survive a camera power-cycle (identity settings do),
-# so the chosen value is remembered and re-asserted on reconnect. Only values
-# set through HA land here - the camera's own menu is never second-guessed.
+# Config entry option: every shooting setting the user last chose in HA,
+# name -> value. Shooting settings do not survive a camera power-cycle
+# (identity settings do), so the chosen values are remembered and re-asserted
+# on reconnect. Only values set through HA land here - the camera's own menu is
+# never second-guessed.
+OPT_STICKY_SETTINGS = "sticky_shooting_settings"
+
+# Superseded by OPT_STICKY_SETTINGS, which held stillimagequality alone. Kept
+# so an existing entry can be migrated; nothing writes it any more.
 OPT_STICKY_QUALITY = "sticky_stillimagequality"
