@@ -13,7 +13,7 @@
 | Lens | `sensor` | Attached lens name from `/devicestatus/lens`, `none` when nothing is mounted. Refreshed on the slow cadence - glass is not swapped every ten seconds. |
 | Copyright / Author / Owner Name / Nickname | `text` | `/functions/registeredname/*`, embedded into the EXIF of every shot. Note the field is **author**, not `artist` as the CCAPI reference calls it. |
 | Recordable Shots | `sensor` | From `/shooting/information/recordable`. Already accounts for the current image quality, so it answers "how many more shots" without arithmetic. |
-| Live View | `switch` | Explicit control. The camera entity starts live view lazily whenever anything asks for a frame, so this makes that visible and stoppable. |
+| Camera Display | `switch` | The rear screen and the Home Assistant preview are mutually exclusive: `on` means the camera's own screen shows the scene, `off` means live view is streaming to HA instead. The camera entity starts live view lazily whenever anything asks for a frame, so this makes that visible and reversible. |
 | Take Photo | `button` | Same path as the `canon_ccapi.take_photo` action. |
 | Sync Clock | `button` | Sets the camera clock from Home Assistant. Corrects only the wall clock and preserves the camera's own UTC offset and dst flag. |
 | Live View | `camera` | Starts live view on demand and stops it again. |
