@@ -32,13 +32,18 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = timedelta(seconds=10)
 
-# Writable camera settings exposed as select entities, name -> endpoint suffix.
+# Writable camera settings exposed as entities, name -> endpoint suffix.
 # Not all live under /functions/, so the path is explicit rather than derived.
-CAMERA_SETTINGS = {
+#
+# Split by how they are READ, not by what they mean: everything under
+# /shooting/settings/ comes back from one aggregate GET (see
+# SHOOTING_SETTINGS_PATH), while /functions/ has no such endpoint and needs a
+# GET each. Writes always go to the individual endpoint either way - the
+# aggregate is GET-only.
+FUNCTION_SETTINGS = {
     "displayoff": "/functions/displayoff",
     "autopoweroff": "/functions/autopoweroff",
     "beep": "/functions/beep",
-    "stillimagequality": "/shooting/settings/stillimagequality",
     # "author", not "artist" - the reference calls this field artist but this
     # camera exposes author and 404s on artist.
     "datetime": "/functions/datetime",
@@ -46,6 +51,35 @@ CAMERA_SETTINGS = {
     "registeredname/author": "/functions/registeredname/author",
     "registeredname/nickname": "/functions/registeredname/nickname",
 }
+
+SHOOTING_SETTINGS = {
+    "stillimagequality": "/shooting/settings/stillimagequality",
+    "stillimageaspectratio": "/shooting/settings/stillimageaspectratio",
+    "iso": "/shooting/settings/iso",
+    "av": "/shooting/settings/av",
+    "tv": "/shooting/settings/tv",
+    "exposure": "/shooting/settings/exposure",
+    "wb": "/shooting/settings/wb",
+    "metering": "/shooting/settings/metering",
+    "drive": "/shooting/settings/drive",
+    "flash": "/shooting/settings/flash",
+    "afmethod": "/shooting/settings/afmethod",
+    "ismode": "/shooting/settings/ismode",
+    "picturestyle": "/shooting/settings/picturestyle",
+    "colorspace": "/shooting/settings/colorspace",
+}
+
+CAMERA_SETTINGS = {**FUNCTION_SETTINGS, **SHOOTING_SETTINGS}
+
+# Read from the aggregate and cached for sensors, never written. The mode dial
+# is physical on this body, and afoperation advertises no PUT at all.
+READ_ONLY_SETTINGS = ("shootingmodedial", "afoperation")
+
+# One GET returning every /shooting/settings/* value and ability at once. It
+# answers 200 even while the individual endpoints answer 503 "Mode not
+# supported" - the settings the current dial position forbids simply come back
+# as {"value": "", "ability": []}.
+SHOOTING_SETTINGS_PATH = "/shooting/settings"
 
 # registeredname/ownername is absent on purpose. Only GET is safe there; a PUT
 # takes the camera off the network until it is power-cycled, so the field is not
@@ -99,6 +133,22 @@ def find_endpoint_url(
     return None
 
 
+def merge_shooting_settings(aggregate: dict) -> dict:
+    """Pick the settings we expose out of one GET /shooting/settings response.
+
+    The aggregate also carries movie, sound-recording and per-picture-style
+    sub-objects this integration has no entities for; keeping only known keys
+    means an unfamiliar body cannot inflate the cache with entries nothing
+    reads.
+    """
+    if not isinstance(aggregate, dict):
+        return {}
+    wanted = (*SHOOTING_SETTINGS, *READ_ONLY_SETTINGS)
+    return {
+        name: aggregate[name]
+        for name in wanted
+        if isinstance(aggregate.get(name), dict)
+    }
 class CcapiCoordinator(DataUpdateCoordinator):
     def __init__(
         self, hass: HomeAssistant, host: str, port: int, entry: ConfigEntry
@@ -435,25 +485,58 @@ class CcapiCoordinator(DataUpdateCoordinator):
         self._liveview_active = False
 
     async def _async_fetch_settings(self, manifest: dict) -> None:
-        """Cache the writable /functions/ settings and their allowed values."""
+        """Cache the writable settings and their allowed values.
+
+        /functions/ is read one endpoint at a time; /shooting/settings/ comes
+        from a single aggregate GET, which is what makes exposing a dozen
+        shooting settings affordable on a 10 s poll.
+        """
         settings: dict = {}
         async with aiohttp.ClientSession() as session:
-            for name, suffix in CAMERA_SETTINGS.items():
+            for name, suffix in FUNCTION_SETTINGS.items():
                 url = find_endpoint_url(manifest, self._host, self._port, suffix)
                 if not url:
                     _LOGGER.debug("%s endpoint not in manifest, skipping", name)
                     continue
                 self._setting_urls[name] = url
+                await self._async_fetch_one(session, name, url, settings)
+
+            # Writes still go to the individual endpoint, so the PUT URL has to
+            # be resolved even though the value arrives via the aggregate.
+            for name, suffix in SHOOTING_SETTINGS.items():
+                url = find_endpoint_url(
+                    manifest, self._host, self._port, suffix, method="put"
+                )
+                if url:
+                    self._setting_urls[name] = url
+                else:
+                    _LOGGER.debug("%s is not writable on this body", name)
+
+            aggregate_url = find_endpoint_url(
+                manifest, self._host, self._port, SHOOTING_SETTINGS_PATH
+            )
+            got_aggregate = False
+            if aggregate_url:
                 try:
                     async with session.get(
-                        url, timeout=aiohttp.ClientTimeout(total=5)
+                        aggregate_url, timeout=aiohttp.ClientTimeout(total=5)
                     ) as resp:
                         if resp.status == 200:
-                            settings[name] = await resp.json()
+                            settings.update(merge_shooting_settings(await resp.json()))
+                            got_aggregate = True
                         else:
-                            _LOGGER.debug("%s HTTP %s", name, resp.status)
+                            _LOGGER.debug("Shooting settings HTTP %s", resp.status)
                 except Exception as exc:
-                    _LOGGER.debug("%s fetch failed: %s", name, exc)
+                    _LOGGER.debug("Shooting settings fetch failed: %s", exc)
+
+            # Older bodies may not advertise the aggregate. One GET each is slow
+            # but correct, so fall back rather than losing the entities.
+            if not got_aggregate:
+                for name in SHOOTING_SETTINGS:
+                    url = self._setting_urls.get(name)
+                    if url:
+                        await self._async_fetch_one(session, name, url, settings)
+
         # Only replace the cache on a successful read, so one transient failure
         # does not blank out the select entities.
         if settings:
@@ -477,8 +560,23 @@ class CcapiCoordinator(DataUpdateCoordinator):
             except Exception as exc:
                 _LOGGER.debug("Lens fetch failed: %s", exc)
 
+    async def _async_fetch_one(
+        self, session: aiohttp.ClientSession, name: str, url: str, into: dict
+    ) -> None:
+        """GET one setting endpoint into `into`. Never raises."""
+        try:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                if resp.status == 200:
+                    into[name] = await resp.json()
+                else:
+                    # 503 "Mode not supported" is normal here, not a fault: the
+                    # mode dial decides which settings exist at all.
+                    _LOGGER.debug("%s HTTP %s", name, resp.status)
+        except Exception as exc:
+            _LOGGER.debug("%s fetch failed: %s", name, exc)
+
     async def async_set_setting(self, name: str, value) -> None:
-        """PUT one /functions/ setting, then refresh the cached copy."""
+        """PUT one setting, then refresh the cached copy."""
         url = self._setting_urls.get(name)
         if not url:
             raise HomeAssistantError(
