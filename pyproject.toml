@@ -1,0 +1,26 @@
+[project]
+name = "canon-ccapi"
+version = "0.1.0"
+description = "Canon Camera Control API integration for Home Assistant"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest-homeassistant-custom-component",
+]
+
+[tool.uv]
+# This repo ships a Home Assistant custom_component, not an installable package.
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

@@ -21,3 +21,9 @@ config/*
 # Documents
 
 CameraControlAPI_Reference_*.pdf
+
+# nix / direnv / python env
+.direnv
+.venv
+result
+result-*

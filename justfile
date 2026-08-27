@@ -68,3 +68,19 @@ remove-stale name:
 # Re-record what a camera supports into docs/capabilities/
 capabilities cam="192.168.178.212:8080":
     .venv/bin/python tools/dump_capabilities.py {{cam}}
+
+# Lint with ruff - same check `nix flake check` gates on
+lint:
+    ruff check .
+
+# Apply ruff's safe autofixes
+lint-fix:
+    ruff check --fix .
+
+# Reformat with ruff. Not gated by `just lint`, so run it deliberately.
+fmt:
+    ruff format .
+
+# Everything that has to pass before a deploy
+check: lint
+    pytest
