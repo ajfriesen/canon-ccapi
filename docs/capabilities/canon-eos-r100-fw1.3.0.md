@@ -21,61 +21,61 @@ Current value and the values the camera reports as allowed.
 |---|---|---|
 | `/devicestatus/battery` | `{"kind": "ac_adapter", "name": "DR-E17", "quality": "", "level": ""}` | - |
 | `/devicestatus/lens` | `{"mount": true, "name": "RF-S18-45mm F4.5-6.3 IS STM"}` | - |
-| `/devicestatus/storage` | `{"storagelist": [{"name": "sd", "path": "/ccapi/ver130/contents/sd", "accesscapability": "readwrite", "maxsize": 7939817472, "spacesize": 7427227648, "contentsnumber": 50}]}` | - |
+| `/devicestatus/storage` | `{"storagelist": [{"name": "sd", "path": "/ccapi/ver130/contents/sd", "accesscapability": "readwrite", "maxsize": 7939817472, "spacesize": 7935098880, "contentsnumber": 4}]}` | - |
 | `/devicestatus/temperature` | `{"status": "normal"}` | - |
 | `/functions/autopoweroff` | `"disable"` | `30`, `60`, `180`, `300`, `600`, `disable`, `immediately` |
 | `/functions/beep` | `"disable"` | `enable`, `disabletouch`, `disable` |
-| `/functions/datetime` | `{"datetime": "Wed, 26 Aug 2026 23:21:56 +0100", "dst": true}` | - |
+| `/functions/datetime` | `{"datetime": "Fri, 28 Aug 2026 00:50:02 +0100", "dst": true}` | - |
 | `/functions/displayoff` | `"15"` | `15`, `30`, `60`, `180`, `300`, `600`, `1800` |
-| `/functions/registeredname/author` | `{"author": ""}` | - |
-| `/functions/registeredname/copyright` | `{"copyright": ""}` | - |
-| `/functions/registeredname/nickname` | `{"nickname": "EOSR100_006E4A"}` | - |
+| `/functions/registeredname/author` | `{"author": "Andrej Friesen"}` | - |
+| `/functions/registeredname/copyright` | `{"copyright": "Spielerei"}` | - |
+| `/functions/registeredname/nickname` | `{"nickname": "Spielerei"}` | - |
 | `/functions/registeredname/ownername` | `{"ownername": ""}` | - |
 | `/functions/viewfinderoff` | `"off"` | `1`, `3`, `off` |
 | `/functions/wifisetting/set1` | `{"ssid": "test", "method": "infrastructure", "channel": "", "authentication": "wpawpa2psk", "encryption": "tkipaes", "keyindex": "", "password": "********", "ipaddressset": "auto", "ipaddress": "", "subnetmask": "", "gateway": ""}` | - |
 | `/functions/wifisetting/set2` | `{"ssid": "test oben", "method": "infrastructure", "channel": "", "authentication": "wpawpa2psk", "encryption": "tkipaes", "keyindex": "", "password": "********", "ipaddressset": "auto", "ipaddress": "", "subnetmask": "", "gateway": ""}` | - |
 | `/functions/wifisetting/set3` | `{"ssid": "", "method": "", "channel": "", "authentication": "", "encryption": "", "keyindex": "", "password": "", "ipaddressset": "", "ipaddress": "", "subnetmask": "", "gateway": ""}` | - |
-| `/shooting/information/recordable` | `{"recordableshots": 3613, "remainingtime": null}` | - |
-| `/shooting/settings/aeb` | - | _HTTP 503_ |
-| `/shooting/settings/afmethod` | `"face+tracking"` | `face+tracking` |
-| `/shooting/settings/afoperation` | `"aifocus"` | - |
-| `/shooting/settings/av` | - | _HTTP 503_ |
-| `/shooting/settings/colorspace` | - | _HTTP 503_ |
-| `/shooting/settings/colortemperature` | - | _HTTP 503_ |
+| `/shooting/information/recordable` | `{"recordableshots": 3860, "remainingtime": null}` | - |
+| `/shooting/settings/aeb` | `"+0.0"` | `+0.0`, `+0_1/3`, `+0_2/3`, `+1.0`, `+1_1/3`, `+1_2/3`, `+2.0` |
+| `/shooting/settings/afmethod` | `"face+tracking"` | `face+tracking`, `spot`, `1point`, `zone` |
+| `/shooting/settings/afoperation` | `"manual"` | - |
+| `/shooting/settings/av` | `"f5.6"` | `f4.5`, `f5.0`, `f5.6`, `f6.3`, `f7.1`, `f8.0`, `f9.0`, `f10`, `f11`, `f13`, `f14`, `f16`, `f18`, `f20`, `f22` |
+| `/shooting/settings/colorspace` | `"srgb"` | `srgb`, `adobe_rgb` |
+| `/shooting/settings/colortemperature` | `5200` | `min`: `2500`<br>`max`: `10000`<br>`step`: `100` |
 | `/shooting/settings/drive` | `"single"` | `single`, `continuous`, `self_10sec`, `self_2sec`, `self_continuous` |
-| `/shooting/settings/exposure` | - | _HTTP 503_ |
-| `/shooting/settings/flash` | `"auto"` | `auto`, `on` |
+| `/shooting/settings/exposure` | `"+0.0"` | `-3.0`, `-2_2/3`, `-2_1/3`, `-2.0`, `-1_2/3`, `-1_1/3`, `-1.0`, `-0_2/3`, `-0_1/3`, `+0.0`, `+0_1/3`, `+0_2/3`, `+1.0`, `+1_1/3`, `+1_2/3`, `+2.0`, `+2_1/3`, `+2_2/3`, `+3.0` |
+| `/shooting/settings/flash` | `"off"` | `on`, `off` |
 | `/shooting/settings/highframerate` | - | _HTTP 503_ |
 | `/shooting/settings/ismode` | `"on"` | `off`, `on` |
-| `/shooting/settings/iso` | - | _HTTP 503_ |
-| `/shooting/settings/metering` | - | _HTTP 503_ |
+| `/shooting/settings/iso` | `"auto"` | `auto`, `100`, `125`, `160`, `200`, `250`, `320`, `400`, `500`, `640`, `800`, `1000`, `1250`, `1600`, `2000`, `2500`, `3200`, `4000`, `5000`, `6400`, `8000`, `10000`, `12800` |
+| `/shooting/settings/metering` | `"evaluative"` | `evaluative`, `partial`, `spot`, `center_weighted_average` |
 | `/shooting/settings/moviequality` | - | _HTTP 503_ |
-| `/shooting/settings/picturestyle` | - | _HTTP 503_ |
-| `/shooting/settings/picturestyle/auto` | - | _HTTP 503_ |
-| `/shooting/settings/picturestyle/faithful` | - | _HTTP 503_ |
-| `/shooting/settings/picturestyle/finedetail` | - | _HTTP 503_ |
-| `/shooting/settings/picturestyle/landscape` | - | _HTTP 503_ |
-| `/shooting/settings/picturestyle/monochrome` | - | _HTTP 503_ |
-| `/shooting/settings/picturestyle/neutral` | - | _HTTP 503_ |
-| `/shooting/settings/picturestyle/portrait` | - | _HTTP 503_ |
-| `/shooting/settings/picturestyle/standard` | - | _HTTP 503_ |
-| `/shooting/settings/picturestyle/userdef1` | - | _HTTP 503_ |
-| `/shooting/settings/picturestyle/userdef1/basepicturestyle` | - | _HTTP 503_ |
-| `/shooting/settings/picturestyle/userdef2` | - | _HTTP 503_ |
-| `/shooting/settings/picturestyle/userdef2/basepicturestyle` | - | _HTTP 503_ |
-| `/shooting/settings/picturestyle/userdef3` | - | _HTTP 503_ |
-| `/shooting/settings/picturestyle/userdef3/basepicturestyle` | - | _HTTP 503_ |
-| `/shooting/settings/shootingmodedial` | `"a+"` | - |
+| `/shooting/settings/picturestyle` | `"auto"` | `auto`, `standard`, `portrait`, `landscape`, `finedetail`, `neutral`, `faithful`, `monochrome`, `userdef1`, `userdef2`, `userdef3` |
+| `/shooting/settings/picturestyle/auto` | `{"sharpness_strength": 4, "sharpness_fineness": 2, "sharpness_threshold": 4, "contrast": 0, "saturation": 0, "colortone": 0}` | `sharpness_strength`: `{'min': 0, 'max': 7, 'step': 1}`<br>`sharpness_fineness`: `{'min': 1, 'max': 5, 'step': 1}`<br>`sharpness_threshold`: `{'min': 1, 'max': 5, 'step': 1}`<br>`contrast`: `{'min': -4, 'max': 4, 'step': 1}`<br>`saturation`: `{'min': -4, 'max': 4, 'step': 1}`<br>`colortone`: `{'min': -4, 'max': 4, 'step': 1}` |
+| `/shooting/settings/picturestyle/faithful` | `{"sharpness_strength": 0, "sharpness_fineness": 2, "sharpness_threshold": 2, "contrast": 0, "saturation": 0, "colortone": 0}` | `sharpness_strength`: `{'min': 0, 'max': 7, 'step': 1}`<br>`sharpness_fineness`: `{'min': 1, 'max': 5, 'step': 1}`<br>`sharpness_threshold`: `{'min': 1, 'max': 5, 'step': 1}`<br>`contrast`: `{'min': -4, 'max': 4, 'step': 1}`<br>`saturation`: `{'min': -4, 'max': 4, 'step': 1}`<br>`colortone`: `{'min': -4, 'max': 4, 'step': 1}` |
+| `/shooting/settings/picturestyle/finedetail` | `{"sharpness_strength": 4, "sharpness_fineness": 1, "sharpness_threshold": 1, "contrast": 0, "saturation": 0, "colortone": 0}` | `sharpness_strength`: `{'min': 0, 'max': 7, 'step': 1}`<br>`sharpness_fineness`: `{'min': 1, 'max': 5, 'step': 1}`<br>`sharpness_threshold`: `{'min': 1, 'max': 5, 'step': 1}`<br>`contrast`: `{'min': -4, 'max': 4, 'step': 1}`<br>`saturation`: `{'min': -4, 'max': 4, 'step': 1}`<br>`colortone`: `{'min': -4, 'max': 4, 'step': 1}` |
+| `/shooting/settings/picturestyle/landscape` | `{"sharpness_strength": 5, "sharpness_fineness": 2, "sharpness_threshold": 4, "contrast": 0, "saturation": 0, "colortone": 0}` | `sharpness_strength`: `{'min': 0, 'max': 7, 'step': 1}`<br>`sharpness_fineness`: `{'min': 1, 'max': 5, 'step': 1}`<br>`sharpness_threshold`: `{'min': 1, 'max': 5, 'step': 1}`<br>`contrast`: `{'min': -4, 'max': 4, 'step': 1}`<br>`saturation`: `{'min': -4, 'max': 4, 'step': 1}`<br>`colortone`: `{'min': -4, 'max': 4, 'step': 1}` |
+| `/shooting/settings/picturestyle/monochrome` | `{"sharpness_strength": 4, "sharpness_fineness": 2, "sharpness_threshold": 4, "contrast": 0, "filtereffect": "none", "toningeffect": "none"}` | `sharpness_strength`: `{'min': 0, 'max': 7, 'step': 1}`<br>`sharpness_fineness`: `{'min': 1, 'max': 5, 'step': 1}`<br>`sharpness_threshold`: `{'min': 1, 'max': 5, 'step': 1}`<br>`contrast`: `{'min': -4, 'max': 4, 'step': 1}`<br>`filtereffect`: `none`, `yellow`, `orange`, `red`, `green`<br>`toningeffect`: `none`, `sepia`, `blue`, `purple`, `green` |
+| `/shooting/settings/picturestyle/neutral` | `{"sharpness_strength": 0, "sharpness_fineness": 2, "sharpness_threshold": 2, "contrast": 0, "saturation": 0, "colortone": 0}` | `sharpness_strength`: `{'min': 0, 'max': 7, 'step': 1}`<br>`sharpness_fineness`: `{'min': 1, 'max': 5, 'step': 1}`<br>`sharpness_threshold`: `{'min': 1, 'max': 5, 'step': 1}`<br>`contrast`: `{'min': -4, 'max': 4, 'step': 1}`<br>`saturation`: `{'min': -4, 'max': 4, 'step': 1}`<br>`colortone`: `{'min': -4, 'max': 4, 'step': 1}` |
+| `/shooting/settings/picturestyle/portrait` | `{"sharpness_strength": 3, "sharpness_fineness": 2, "sharpness_threshold": 4, "contrast": 0, "saturation": 0, "colortone": 0}` | `sharpness_strength`: `{'min': 0, 'max': 7, 'step': 1}`<br>`sharpness_fineness`: `{'min': 1, 'max': 5, 'step': 1}`<br>`sharpness_threshold`: `{'min': 1, 'max': 5, 'step': 1}`<br>`contrast`: `{'min': -4, 'max': 4, 'step': 1}`<br>`saturation`: `{'min': -4, 'max': 4, 'step': 1}`<br>`colortone`: `{'min': -4, 'max': 4, 'step': 1}` |
+| `/shooting/settings/picturestyle/standard` | `{"sharpness_strength": 4, "sharpness_fineness": 2, "sharpness_threshold": 4, "contrast": 0, "saturation": 0, "colortone": 0}` | `sharpness_strength`: `{'min': 0, 'max': 7, 'step': 1}`<br>`sharpness_fineness`: `{'min': 1, 'max': 5, 'step': 1}`<br>`sharpness_threshold`: `{'min': 1, 'max': 5, 'step': 1}`<br>`contrast`: `{'min': -4, 'max': 4, 'step': 1}`<br>`saturation`: `{'min': -4, 'max': 4, 'step': 1}`<br>`colortone`: `{'min': -4, 'max': 4, 'step': 1}` |
+| `/shooting/settings/picturestyle/userdef1` | `{"basepicturestyle": "auto", "sharpness_strength": 4, "sharpness_fineness": 2, "sharpness_threshold": 4, "contrast": 0, "saturation": 0, "colortone": 0}` | `basepicturestyle`: <br>`sharpness_strength`: `{'min': 0, 'max': 7, 'step': 1}`<br>`sharpness_fineness`: `{'min': 1, 'max': 5, 'step': 1}`<br>`sharpness_threshold`: `{'min': 1, 'max': 5, 'step': 1}`<br>`contrast`: `{'min': -4, 'max': 4, 'step': 1}`<br>`saturation`: `{'min': -4, 'max': 4, 'step': 1}`<br>`colortone`: `{'min': -4, 'max': 4, 'step': 1}` |
+| `/shooting/settings/picturestyle/userdef1/basepicturestyle` | `"auto"` | `auto`, `standard`, `portrait`, `landscape`, `finedetail`, `neutral`, `faithful`, `monochrome` |
+| `/shooting/settings/picturestyle/userdef2` | `{"basepicturestyle": "auto", "sharpness_strength": 4, "sharpness_fineness": 2, "sharpness_threshold": 4, "contrast": 0, "saturation": 0, "colortone": 0}` | `basepicturestyle`: <br>`sharpness_strength`: `{'min': 0, 'max': 7, 'step': 1}`<br>`sharpness_fineness`: `{'min': 1, 'max': 5, 'step': 1}`<br>`sharpness_threshold`: `{'min': 1, 'max': 5, 'step': 1}`<br>`contrast`: `{'min': -4, 'max': 4, 'step': 1}`<br>`saturation`: `{'min': -4, 'max': 4, 'step': 1}`<br>`colortone`: `{'min': -4, 'max': 4, 'step': 1}` |
+| `/shooting/settings/picturestyle/userdef2/basepicturestyle` | `"auto"` | `auto`, `standard`, `portrait`, `landscape`, `finedetail`, `neutral`, `faithful`, `monochrome` |
+| `/shooting/settings/picturestyle/userdef3` | `{"basepicturestyle": "auto", "sharpness_strength": 4, "sharpness_fineness": 2, "sharpness_threshold": 4, "contrast": 0, "saturation": 0, "colortone": 0}` | `basepicturestyle`: <br>`sharpness_strength`: `{'min': 0, 'max': 7, 'step': 1}`<br>`sharpness_fineness`: `{'min': 1, 'max': 5, 'step': 1}`<br>`sharpness_threshold`: `{'min': 1, 'max': 5, 'step': 1}`<br>`contrast`: `{'min': -4, 'max': 4, 'step': 1}`<br>`saturation`: `{'min': -4, 'max': 4, 'step': 1}`<br>`colortone`: `{'min': -4, 'max': 4, 'step': 1}` |
+| `/shooting/settings/picturestyle/userdef3/basepicturestyle` | `"auto"` | `auto`, `standard`, `portrait`, `landscape`, `finedetail`, `neutral`, `faithful`, `monochrome` |
+| `/shooting/settings/shootingmodedial` | `"m"` | - |
 | `/shooting/settings/soundrecording` | - | _HTTP 503_ |
 | `/shooting/settings/soundrecording/attenuator` | - | _HTTP 503_ |
 | `/shooting/settings/soundrecording/level` | - | _HTTP 503_ |
 | `/shooting/settings/soundrecording/windfilter` | - | _HTTP 503_ |
 | `/shooting/settings/stillimageaspectratio` | `"3:2"` | `3:2`, `4:3`, `16:9`, `1:1` |
 | `/shooting/settings/stillimagequality` | `{"raw": "none", "jpeg": "small2"}` | `raw`: `none`, `raw`, `craw`<br>`jpeg`: `none`, `large_fine`, `large_normal`, `medium_fine`, `medium_normal`, `small1_fine`, `small1_normal`, `small2` |
-| `/shooting/settings/tv` | - | _HTTP 503_ |
-| `/shooting/settings/wb` | - | _HTTP 503_ |
-| `/shooting/settings/wbbracket` | - | _HTTP 503_ |
-| `/shooting/settings/wbshift` | - | _HTTP 503_ |
+| `/shooting/settings/tv` | `"1/125"` | `bulb`, `30"`, `25"`, `20"`, `15"`, `13"`, `10"`, `8"`, `6"`, `5"`, `4"`, `3"2`, `2"5`, `2"`, `1"6`, `1"3`, `1"`, `0"8`, `0"6`, `0"5`, `0"4`, `0"3`, `1/4`, `1/5`, `1/6`, `1/8`, `1/10`, `1/13`, `1/15`, `1/20`, `1/25`, `1/30`, `1/40`, `1/50`, `1/60`, `1/80`, `1/100`, `1/125`, `1/160`, `1/200`, `1/250`, `1/320`, `1/400`, `1/500`, `1/640`, `1/800`, `1/1000`, `1/1250`, `1/1600`, `1/2000`, `1/2500`, `1/3200`, `1/4000` |
+| `/shooting/settings/wb` | `"auto"` | `auto`, `awbwhite`, `daylight`, `shade`, `cloudy`, `tungsten`, `whitefluorescent`, `flash`, `custom`, `colortemp` |
+| `/shooting/settings/wbbracket` | `"0"` | `0`, `ba1`, `ba2`, `ba3`, `mg1`, `mg2`, `mg3` |
+| `/shooting/settings/wbshift` | `{"ba": 0, "mg": 0}` | `ba`: `{'min': -9, 'max': 9, 'step': 1}`<br>`mg`: `{'min': -9, 'max': 9, 'step': 1}` |
 
 ## Endpoints
 

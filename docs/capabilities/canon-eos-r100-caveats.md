@@ -84,22 +84,45 @@ then poll repeatedly. The image shows up after roughly 1 s on this body.
 
 ---
 
-## 32 settings answer 503 while the camera is idle
+## 32 settings answer 503 — the mode dial decides, not idleness
 
-Most of `/shooting/settings/*` is unreadable when the camera is sitting outside
-shooting mode.
+Most of `/shooting/settings/*` is unreadable while the mode dial is on `a+`.
+This was first recorded as "while the camera is idle", but the camera says
+otherwise in the body, and it persists on a fully awake camera:
 
 ```
 GET /ccapi/ver100/shooting/settings/av
-→ HTTP 503
+→ HTTP 503 {"message":"Mode not supported"}
 ```
 
-**Impact.** A capability dump taken with an idle camera under-reports. Do not
-conclude a feature is missing from a 503 — the endpoint exists and the value is
-simply not available in that state.
+Affected on this body in `a+`: `av`, `tv`, `iso`, `exposure`, `wb`,
+`metering`, `colorspace`, `picturestyle`, `aeb`, `colortemperature` and the
+movie/sound-recording group. Readable in the same state: `drive`, `flash`,
+`afmethod`, `ismode`, `stillimagequality`, `stillimageaspectratio`,
+`shootingmodedial`.
 
-**Handling.** Put the camera in shooting mode before regenerating the dump if
-you need those values.
+The aggregate endpoint behaves differently and better:
+
+```
+GET /ccapi/ver100/shooting/settings
+→ HTTP 200 {"shootingmodedial":{"value":"a+"},
+            "av":{"value":"","ability":[]},
+            "drive":{"value":"single","ability":["single","continuous",...]}, ...}
+```
+
+It answers 200 whatever the dial is doing, returns **every** shooting setting
+in one request, and reports the forbidden ones as an empty value with an empty
+ability list.
+
+**Impact.** A capability dump taken in `a+` under-reports. Do not conclude a
+feature is missing from a 503 — the endpoint exists and the value is simply not
+available in that dial position. `shootingmodedial` is GET-only, so software
+cannot move the dial to make them appear.
+
+**Handling.** The integration reads the aggregate and marks a setting's entity
+unavailable when it comes back empty, rather than offering an empty dropdown.
+Turn the dial to `P`/`Tv`/`Av`/`M` before regenerating the dump if you need
+those values.
 
 ---
 
