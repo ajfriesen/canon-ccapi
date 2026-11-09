@@ -1,6 +1,31 @@
 # Home Assistant Integration for Canon CCAPI 
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ajfriesen&repository=canon-ccapi)
+[![Open your Home Assistant instance and open a repository inside the Marketplace.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ajfriesen&repository=canon-ccapi)
+
+## Requirements
+
+- Home Assistant 2026.11 or newer for the built-in Marketplace (older versions: HACS).
+- A Canon camera with the Camera Control API (CCAPI) enabled and reachable on
+  your network. CCAPI must be activated once through Canon's developer program.
+
+## Installation
+
+### Marketplace (recommended)
+
+Click the badge above, or in Home Assistant go to **Settings → Marketplace**,
+search for *Canon Camera Control API* and install it. Until it is listed in
+the default catalog, add `https://github.com/ajfriesen/canon-ccapi` as a
+custom repository (type *Integration*) first. Restart Home Assistant.
+
+### Manual
+
+Copy `custom_components/canon_ccapi/` into your Home Assistant
+`config/custom_components/` directory and restart.
+
+### Setup
+
+**Settings → Devices & services → Add integration → Canon Camera Control API**,
+then enter the camera's IP address and CCAPI port (usually `8080`).
 
 ## Entities
 
@@ -73,26 +98,15 @@ and check that `path` is non-empty.
 
 ## Development
 
-The repo ships a Nix flake with a Python 3.13 dev shell. With direnv:
+The `justfile` deploys the working tree straight onto a running Home Assistant
+over SSH, so a change can be tested without cutting a release:
 
 ```bash
-direnv allow
+just sync   # rsync custom_components/canon_ccapi/ to HA and restart Core
+just logs   # follow this integration's log lines
 ```
 
-Without direnv:
-
-```bash
-nix develop
-```
-
-Entering the shell runs `uv sync`, which builds `.venv` from `pyproject.toml`
-(`pytest-homeassistant-custom-component` pulls in a matching Home Assistant),
-and activates it. Then:
-
-```bash
-pytest        # tests/
-ruff check .  # lint
-```
+See the comments at the top of the `justfile` for host settings.
 
 ## Links
 

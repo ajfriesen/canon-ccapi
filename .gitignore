@@ -20,4 +20,4 @@ config/*
 
 # Documents
 
-CameraControlAPI_Reference_*.pdf
+CameraControlAPI_Reference_*.pdf.direnv/
